@@ -15,8 +15,9 @@ export const getMetrics = asyncHandler(async (req: AuthenticatedRequest, res: Re
   const startOfToday = getStartOfDay(today);
   const endOfToday = getEndOfDay(today);
 
-  const branchCondition = branchId ? 'AND j.branch_id = $3' : '';
-  const params = branchId
+  const branchConditionWithDate = branchId ? 'AND j.branch_id = $3' : '';
+  const branchConditionOnly = branchId ? 'AND j.branch_id = $1' : '';
+  const paramsWithDate = branchId
     ? [startOfToday, endOfToday, branchId]
     : [startOfToday, endOfToday];
 
@@ -26,8 +27,8 @@ export const getMetrics = asyncHandler(async (req: AuthenticatedRequest, res: Re
      FROM jobs j
      WHERE j.created_at >= $1 AND j.created_at <= $2
      AND j.status NOT IN ('cancelled')
-     ${branchCondition}`,
-    params
+     ${branchConditionWithDate}`,
+    paramsWithDate
   );
 
   // Get active jobs (not completed or cancelled)
@@ -35,7 +36,7 @@ export const getMetrics = asyncHandler(async (req: AuthenticatedRequest, res: Re
     `SELECT COUNT(*) as count
      FROM jobs j
      WHERE j.status IN ('checked_in', 'in_queue', 'washing', 'detailing')
-     ${branchCondition}`,
+     ${branchConditionOnly}`,
     branchId ? [branchId] : []
   );
 
@@ -44,7 +45,7 @@ export const getMetrics = asyncHandler(async (req: AuthenticatedRequest, res: Re
     `SELECT COUNT(*) as count
      FROM jobs j
      WHERE j.status = 'completed'
-     ${branchCondition}`,
+     ${branchConditionOnly}`,
     branchId ? [branchId] : []
   );
 
@@ -59,8 +60,8 @@ export const getMetrics = asyncHandler(async (req: AuthenticatedRequest, res: Re
      JOIN jobs j ON p.job_id = j.id
      WHERE p.created_at >= $1 AND p.created_at <= $2
      AND p.status = 'completed'
-     ${branchCondition}`,
-    params
+     ${branchConditionWithDate}`,
+    paramsWithDate
   );
 
   // Get average service time for completed jobs today
@@ -69,8 +70,8 @@ export const getMetrics = asyncHandler(async (req: AuthenticatedRequest, res: Re
      FROM jobs j
      WHERE j.actual_completion IS NOT NULL
      AND j.created_at >= $1 AND j.created_at <= $2
-     ${branchCondition}`,
-    params
+     ${branchConditionWithDate}`,
+    paramsWithDate
   );
 
   // Get staff on duty (users who logged in today or have active jobs)
@@ -84,7 +85,7 @@ export const getMetrics = asyncHandler(async (req: AuthenticatedRequest, res: Re
        AND j.status IN ('washing', 'detailing')
      ))
      ${branchId ? 'AND u.branch_id = $3' : ''}`,
-    params
+    paramsWithDate
   );
 
   // Get low stock alerts count

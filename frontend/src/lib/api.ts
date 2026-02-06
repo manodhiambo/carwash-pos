@@ -298,7 +298,7 @@ export const dashboardApi = {
 export const usersApi = {
   getAll: async (params?: PaginationParams): Promise<PaginatedResponse<User>> => {
     try {
-      const response = await apiClient.get<PaginatedResponse<User>>('/users', { params });
+      const response = await apiClient.get<PaginatedResponse<User>>('/auth/users', { params });
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
@@ -307,7 +307,7 @@ export const usersApi = {
 
   getById: async (id: string): Promise<ApiResponse<User>> => {
     try {
-      const response = await apiClient.get<ApiResponse<User>>(`/users/${id}`);
+      const response = await apiClient.get<ApiResponse<User>>(`/auth/users/${id}`);
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
@@ -316,7 +316,7 @@ export const usersApi = {
 
   create: async (data: Partial<User> & { password: string }): Promise<ApiResponse<User>> => {
     try {
-      const response = await apiClient.post<ApiResponse<User>>('/users', data);
+      const response = await apiClient.post<ApiResponse<User>>('/auth/register', data);
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
@@ -325,7 +325,7 @@ export const usersApi = {
 
   update: async (id: string, data: Partial<User>): Promise<ApiResponse<User>> => {
     try {
-      const response = await apiClient.put<ApiResponse<User>>(`/users/${id}`, data);
+      const response = await apiClient.put<ApiResponse<User>>(`/auth/users/${id}`, data);
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
@@ -334,7 +334,7 @@ export const usersApi = {
 
   delete: async (id: string): Promise<ApiResponse<void>> => {
     try {
-      const response = await apiClient.delete<ApiResponse<void>>(`/users/${id}`);
+      const response = await apiClient.delete<ApiResponse<void>>(`/auth/users/${id}`);
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
@@ -347,7 +347,7 @@ export const usersApi = {
     rating: number;
   }>> => {
     try {
-      const response = await apiClient.get(`/users/${id}/performance`, {
+      const response = await apiClient.get(`/auth/users/${id}/performance`, {
         params: { start_date: startDate, end_date: endDate },
       });
       return response.data;
