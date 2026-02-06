@@ -153,7 +153,7 @@ export default function LoginPage() {
 
               <div className="mt-6 text-center text-sm text-muted-foreground">
                 <p>Demo Credentials:</p>
-                <p className="font-mono text-xs mt-1">admin@carwash.co.ke / admin123</p>
+                <p className="font-mono text-xs mt-1">admin@carwashpro.co.ke / admin123</p>
               </div>
             </CardContent>
           </Card>

@@ -148,10 +148,27 @@ const handleApiError = (error: AxiosError<ApiError>): never => {
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
     try {
-      const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
-      const { accessToken: access, refreshToken: refresh } = response.data.data.tokens;
-      setTokens(access, refresh);
-      return response.data;
+      // Backend expects 'username' field which accepts both username and email
+      const response = await apiClient.post('/auth/login', {
+        username: credentials.email,
+        password: credentials.password,
+      });
+
+      // Transform backend response to match frontend expected format
+      const { user, token, refreshToken, expiresIn } = response.data.data;
+      setTokens(token, refreshToken);
+
+      return {
+        success: true,
+        data: {
+          user,
+          tokens: {
+            accessToken: token,
+            refreshToken,
+            expiresIn: typeof expiresIn === 'string' ? 604800 : expiresIn, // 7 days in seconds
+          },
+        },
+      };
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
     }
