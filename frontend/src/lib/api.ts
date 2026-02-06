@@ -425,11 +425,11 @@ export const customersApi = {
     }
   },
 
-  addLoyaltyPoints: async (id: string, points: number, reason: string): Promise<ApiResponse<Customer>> => {
+  addLoyaltyPoints: async (id: string, points: number, description?: string): Promise<ApiResponse<Customer>> => {
     try {
-      const response = await apiClient.post<ApiResponse<Customer>>(`/customers/${id}/loyalty/add`, {
+      const response = await apiClient.post<ApiResponse<Customer>>(`/customers/${id}/loyalty`, {
         points,
-        reason,
+        description,
       });
       return response.data;
     } catch (error) {
@@ -439,7 +439,18 @@ export const customersApi = {
 
   redeemLoyaltyPoints: async (id: string, points: number): Promise<ApiResponse<{ discount: number }>> => {
     try {
-      const response = await apiClient.post(`/customers/${id}/loyalty/redeem`, { points });
+      const response = await apiClient.post(`/customers/${id}/redeem`, { points });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  search: async (query: string): Promise<ApiResponse<Customer[]>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<Customer[]>>('/customers/search/autocomplete', {
+        params: { q: query }
+      });
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
@@ -632,9 +643,9 @@ export const jobsApi = {
     }
   },
 
-  updateStatus: async (id: string, status: Job['status']): Promise<ApiResponse<Job>> => {
+  updateStatus: async (id: string, status: Job['status'], notes?: string): Promise<ApiResponse<Job>> => {
     try {
-      const response = await apiClient.patch<ApiResponse<Job>>(`/jobs/${id}/status`, { status });
+      const response = await apiClient.put<ApiResponse<Job>>(`/jobs/${id}/status`, { status, notes });
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
@@ -643,7 +654,7 @@ export const jobsApi = {
 
   assignBay: async (id: string, bayId: string): Promise<ApiResponse<Job>> => {
     try {
-      const response = await apiClient.patch<ApiResponse<Job>>(`/jobs/${id}/assign-bay`, { bay_id: bayId });
+      const response = await apiClient.put<ApiResponse<Job>>(`/jobs/${id}/assign-bay`, { bay_id: bayId });
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
@@ -652,7 +663,7 @@ export const jobsApi = {
 
   assignStaff: async (id: string, staffId: string): Promise<ApiResponse<Job>> => {
     try {
-      const response = await apiClient.patch<ApiResponse<Job>>(`/jobs/${id}/assign-staff`, { staff_id: staffId });
+      const response = await apiClient.put<ApiResponse<Job>>(`/jobs/${id}/assign-staff`, { staff_id: staffId });
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
@@ -682,7 +693,7 @@ export const jobsApi = {
 
   applyDiscount: async (id: string, discountType: 'percentage' | 'fixed', discountValue: number): Promise<ApiResponse<Job>> => {
     try {
-      const response = await apiClient.patch<ApiResponse<Job>>(`/jobs/${id}/discount`, {
+      const response = await apiClient.post<ApiResponse<Job>>(`/jobs/${id}/discount`, {
         discount_type: discountType,
         discount_value: discountValue,
       });
@@ -694,7 +705,10 @@ export const jobsApi = {
 
   cancel: async (id: string, reason?: string): Promise<ApiResponse<Job>> => {
     try {
-      const response = await apiClient.patch<ApiResponse<Job>>(`/jobs/${id}/cancel`, { reason });
+      const response = await apiClient.put<ApiResponse<Job>>(`/jobs/${id}/status`, {
+        status: 'cancelled',
+        notes: reason,
+      });
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
@@ -703,16 +717,18 @@ export const jobsApi = {
 
   getQueue: async (): Promise<ApiResponse<Job[]>> => {
     try {
-      const response = await apiClient.get<ApiResponse<Job[]>>('/jobs/queue');
+      const response = await apiClient.get<ApiResponse<Job[]>>('/dashboard/queue');
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
     }
   },
 
-  getActive: async (): Promise<ApiResponse<Job[]>> => {
+  getActive: async (): Promise<PaginatedResponse<Job>> => {
     try {
-      const response = await apiClient.get<ApiResponse<Job[]>>('/jobs/active');
+      const response = await apiClient.get<PaginatedResponse<Job>>('/jobs', {
+        params: { status: 'checked_in,in_queue,washing,detailing' }
+      });
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
@@ -761,7 +777,7 @@ export const paymentsApi = {
     merchant_request_id: string;
   }>> => {
     try {
-      const response = await apiClient.post('/payments/mpesa/initiate', {
+      const response = await apiClient.post('/payments/mpesa/stk-push', {
         job_id: jobId,
         phone,
         amount,
@@ -858,20 +874,29 @@ export const baysApi = {
 
   updateStatus: async (id: string, status: Bay['status']): Promise<ApiResponse<Bay>> => {
     try {
-      const response = await apiClient.patch<ApiResponse<Bay>>(`/bays/${id}/status`, { status });
+      const response = await apiClient.put<ApiResponse<Bay>>(`/bays/${id}/status`, { status });
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
     }
   },
 
-  getUtilization: async (id: string, startDate?: string, endDate?: string): Promise<ApiResponse<{
+  getAvailable: async (): Promise<ApiResponse<Bay[]>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<Bay[]>>('/bays/available');
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  getUtilization: async (startDate?: string, endDate?: string): Promise<ApiResponse<{
     total_jobs: number;
     utilization_rate: number;
     average_service_time: number;
   }>> => {
     try {
-      const response = await apiClient.get(`/bays/${id}/utilization`, {
+      const response = await apiClient.get('/bays/utilization', {
         params: { start_date: startDate, end_date: endDate },
       });
       return response.data;
@@ -994,12 +1019,14 @@ export const inventoryApi = {
     }
   },
 
-  addStock: async (id: string, quantity: number, unitCost: number, referenceNumber?: string, notes?: string): Promise<ApiResponse<StockTransaction>> => {
+  addStock: async (id: string, quantity: number, unitCost?: number, reference?: string, notes?: string): Promise<ApiResponse<StockTransaction>> => {
     try {
-      const response = await apiClient.post<ApiResponse<StockTransaction>>(`/inventory/${id}/stock/add`, {
+      const response = await apiClient.post<ApiResponse<StockTransaction>>('/inventory/transaction', {
+        item_id: id,
+        transaction_type: 'stock_in',
         quantity,
         unit_cost: unitCost,
-        reference_number: referenceNumber,
+        reference,
         notes,
       });
       return response.data;
@@ -1008,11 +1035,13 @@ export const inventoryApi = {
     }
   },
 
-  removeStock: async (id: string, quantity: number, reason: string, notes?: string): Promise<ApiResponse<StockTransaction>> => {
+  removeStock: async (id: string, quantity: number, notes?: string, jobId?: string): Promise<ApiResponse<StockTransaction>> => {
     try {
-      const response = await apiClient.post<ApiResponse<StockTransaction>>(`/inventory/${id}/stock/remove`, {
+      const response = await apiClient.post<ApiResponse<StockTransaction>>('/inventory/transaction', {
+        item_id: id,
+        transaction_type: 'stock_out',
         quantity,
-        reason,
+        job_id: jobId,
         notes,
       });
       return response.data;
@@ -1021,11 +1050,13 @@ export const inventoryApi = {
     }
   },
 
-  adjustStock: async (id: string, newQuantity: number, reason: string): Promise<ApiResponse<StockTransaction>> => {
+  adjustStock: async (id: string, quantity: number, notes?: string): Promise<ApiResponse<StockTransaction>> => {
     try {
-      const response = await apiClient.post<ApiResponse<StockTransaction>>(`/inventory/${id}/stock/adjust`, {
-        new_quantity: newQuantity,
-        reason,
+      const response = await apiClient.post<ApiResponse<StockTransaction>>('/inventory/transaction', {
+        item_id: id,
+        transaction_type: 'adjustment',
+        quantity,
+        notes,
       });
       return response.data;
     } catch (error) {
