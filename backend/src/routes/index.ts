@@ -102,7 +102,12 @@ router.get('/receipts/:jobId', async (req, res) => {
     const job = jobResult.rows[0];
 
     // Get services
-    const servicesResult = await db.query(
+    const servicesResult = await db.query<{
+      name: string;
+      quantity: number;
+      price: number;
+      total: number;
+    }>(
       `SELECT s.name, js.quantity, js.price, js.total
        FROM job_services js
        JOIN services s ON js.service_id = s.id

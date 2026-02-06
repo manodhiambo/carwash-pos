@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import db from '../config/database';
-import { AuthenticatedRequest, DashboardMetrics, DashboardAlerts } from '../types';
+import { AuthenticatedRequest, DashboardMetrics, DashboardAlerts, Job, InventoryItem } from '../types';
 import { asyncHandler } from '../middleware/errorHandler';
 import { LONG_WAIT_THRESHOLD, JOB_STATUS } from '../utils/constants';
 import { getStartOfDay, getEndOfDay, getMinutesDifference } from '../utils/helpers';
@@ -140,7 +140,7 @@ export const getAlerts = asyncHandler(async (req: AuthenticatedRequest, res: Res
   const bayCongestion = parseInt(bayResult.rows[0].occupied, 10) >= parseInt(bayResult.rows[0].total, 10);
 
   // Get long-wait vehicles
-  const longWaitResult = await db.query(
+  const longWaitResult = await db.query<Job>(
     `SELECT j.*, v.registration_no, v.vehicle_type
      FROM jobs j
      JOIN vehicles v ON j.vehicle_id = v.id
@@ -152,7 +152,7 @@ export const getAlerts = asyncHandler(async (req: AuthenticatedRequest, res: Res
   );
 
   // Get low inventory items
-  const lowInventoryResult = await db.query(
+  const lowInventoryResult = await db.query<InventoryItem>(
     `SELECT id, name, category, quantity, reorder_level, unit
      FROM inventory_items
      WHERE quantity <= reorder_level

@@ -1,4 +1,4 @@
-import { Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
+import { Pool, PoolClient, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 import { config } from './index';
 
 const poolConfig: PoolConfig = config.database.url
@@ -64,7 +64,7 @@ export const getClient = async () => {
 };
 
 export const transaction = async <T>(
-  callback: (client: ReturnType<typeof pool.connect> extends Promise<infer U> ? U : never) => Promise<T>
+  callback: (client: PoolClient) => Promise<T>
 ): Promise<T> => {
   const client = await pool.connect();
   try {

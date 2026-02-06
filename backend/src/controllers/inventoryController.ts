@@ -239,6 +239,8 @@ export const recordTransaction = asyncHandler(async (req: AuthenticatedRequest, 
     return;
   }
 
+  const userId = req.user.id;
+
   // Get current item
   const item = await db.query(`SELECT * FROM inventory_items WHERE id = $1`, [item_id]);
   if (item.rows.length === 0) {
@@ -301,7 +303,7 @@ export const recordTransaction = asyncHandler(async (req: AuthenticatedRequest, 
         totalCost,
         reference,
         job_id,
-        req.user.id,
+        userId,
         notes,
       ]
     );

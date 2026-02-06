@@ -140,6 +140,9 @@ export const processPayment = asyncHandler(async (req: AuthenticatedRequest, res
     return;
   }
 
+  const userId = req.user.id;
+  const userBranchId = req.user.branch_id || 1;
+
   // Get job details
   const job = await db.query(
     `SELECT j.*, v.registration_no,
@@ -184,10 +187,9 @@ export const processPayment = asyncHandler(async (req: AuthenticatedRequest, res
 
   // Check if there's an open cash session (for cash payments)
   if (payment_method === 'cash') {
-    const branchId = req.user.branch_id || 1;
     const cashSession = await db.query(
       `SELECT id FROM cash_sessions WHERE branch_id = $1 AND status = 'open'`,
-      [branchId]
+      [userBranchId]
     );
 
     if (cashSession.rows.length === 0) {
@@ -211,7 +213,7 @@ export const processPayment = asyncHandler(async (req: AuthenticatedRequest, res
         payment_method,
         PAYMENT_STATUS.COMPLETED,
         reference_no || generateReferenceNumber('PAY'),
-        req.user.id,
+        userId,
         notes,
       ]
     );
@@ -255,7 +257,7 @@ export const processPayment = asyncHandler(async (req: AuthenticatedRequest, res
           await client.query(
             `INSERT INTO loyalty_transactions (customer_id, job_id, points, transaction_type, description, created_by)
              VALUES ($1, $2, $3, 'earned', 'Points earned from wash', $4)`,
-            [jobData.customer_id, job_id, pointsEarned, req.user.id]
+            [jobData.customer_id, job_id, pointsEarned, userId]
           );
         }
       }
@@ -268,21 +270,21 @@ export const processPayment = asyncHandler(async (req: AuthenticatedRequest, res
          SET cash_sales = cash_sales + $1, total_sales = total_sales + $1,
              expected_closing = opening_balance + cash_sales + $1 - expenses_paid
          WHERE branch_id = $2 AND status = 'open'`,
-        [amount, req.user.branch_id || 1]
+        [amount, userBranchId]
       );
     } else if (payment_method === 'mpesa') {
       await client.query(
         `UPDATE cash_sessions
          SET mpesa_sales = mpesa_sales + $1, total_sales = total_sales + $1
          WHERE branch_id = $2 AND status = 'open'`,
-        [amount, req.user.branch_id || 1]
+        [amount, userBranchId]
       );
     } else if (payment_method === 'card') {
       await client.query(
         `UPDATE cash_sessions
          SET card_sales = card_sales + $1, total_sales = total_sales + $1
          WHERE branch_id = $2 AND status = 'open'`,
-        [amount, req.user.branch_id || 1]
+        [amount, userBranchId]
       );
     }
 

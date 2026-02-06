@@ -321,7 +321,18 @@ export const getActivityLogs = async (filters: {
   const total = parseInt(countResult.rows[0].count, 10);
 
   // Get logs with user info
-  const logsResult = await db.query(
+  const logsResult = await db.query<{
+    id: number;
+    user_id: number;
+    user_name: string;
+    action: string;
+    entity_type: string;
+    entity_id: number;
+    old_values: Record<string, unknown>;
+    new_values: Record<string, unknown>;
+    ip_address: string;
+    created_at: Date;
+  }>(
     `SELECT al.*, u.name as user_name
      FROM activity_logs al
      LEFT JOIN users u ON al.user_id = u.id

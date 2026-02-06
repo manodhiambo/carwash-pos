@@ -1,5 +1,5 @@
 import { Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { config } from '../config';
 import db from '../config/database';
 import { AuthenticatedRequest, User } from '../types';
@@ -145,7 +145,7 @@ export const generateToken = (user: User): string => {
 
   return jwt.sign(payload, config.jwt.secret, {
     expiresIn: config.jwt.expiresIn,
-  });
+  } as SignOptions);
 };
 
 /**
@@ -155,7 +155,7 @@ export const generateRefreshToken = (user: User): string => {
   return jwt.sign(
     { userId: user.id, type: 'refresh' },
     config.jwt.refreshSecret,
-    { expiresIn: config.jwt.refreshExpiresIn }
+    { expiresIn: config.jwt.refreshExpiresIn } as SignOptions
   );
 };
 

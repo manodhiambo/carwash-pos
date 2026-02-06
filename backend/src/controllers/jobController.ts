@@ -248,6 +248,7 @@ export const checkIn = asyncHandler(async (req: AuthenticatedRequest, res: Respo
     return;
   }
 
+  const userId = req.user.id;
   const branchId = req.user.branch_id || 1;
   const normalizedRegNo = normalizeRegistrationNumber(registration_no);
 
@@ -366,7 +367,7 @@ export const checkIn = asyncHandler(async (req: AuthenticatedRequest, res: Respo
         bay_id,
         bay_id ? JOB_STATUS.IN_QUEUE : JOB_STATUS.CHECKED_IN,
         assigned_staff_id,
-        req.user.id,
+        userId,
         estimatedCompletion,
         notes,
         damage_notes,
@@ -546,7 +547,7 @@ export const updateStatus = asyncHandler(async (req: AuthenticatedRequest, res: 
     }
 
     // Free up bay if job is completed, paid, or cancelled
-    if ([JOB_STATUS.COMPLETED, JOB_STATUS.PAID, JOB_STATUS.CANCELLED].includes(status as JobStatus)) {
+    if (status === JOB_STATUS.COMPLETED || status === JOB_STATUS.PAID || status === JOB_STATUS.CANCELLED) {
       if (job.bay_id) {
         await client.query(
           `UPDATE bays SET status = 'available', current_job_id = NULL WHERE id = $1`,
