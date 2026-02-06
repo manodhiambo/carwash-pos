@@ -1632,3 +1632,28 @@ export const receiptsApi = {
 
 // Export the API client for custom requests
 export { apiClient };
+
+// Combined API object for convenience
+export const api = {
+  auth: authApi,
+  dashboard: dashboardApi,
+  users: usersApi,
+  customers: customersApi,
+  vehicles: vehiclesApi,
+  services: servicesApi,
+  jobs: jobsApi,
+  payments: paymentsApi,
+  bays: baysApi,
+  equipment: equipmentApi,
+  inventory: inventoryApi,
+  suppliers: suppliersApi,
+  subscriptions: subscriptionsApi,
+  expenses: expensesApi,
+  cashSessions: cashSessionsApi,
+  reports: reportsApi,
+  settings: settingsApi,
+  branches: branchesApi,
+  promotions: promotionsApi,
+  activityLogs: activityLogsApi,
+  receipts: receiptsApi,
+};

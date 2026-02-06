@@ -72,11 +72,18 @@ export function normalizePhoneNumber(phone: string): string {
 
 /**
  * Format date
+ * @param date - Date string or Date object
+ * @param includeTimeOrFormat - If true, includes time. If string, uses as format string.
  */
-export function formatDate(date: string | Date, formatStr: string = 'PPP'): string {
+export function formatDate(date: string | Date, includeTimeOrFormat: boolean | string = false): string {
   const d = typeof date === 'string' ? parseISO(date) : date;
   if (!isValid(d)) return 'Invalid date';
-  return format(d, formatStr);
+
+  if (typeof includeTimeOrFormat === 'boolean') {
+    return format(d, includeTimeOrFormat ? 'PPP p' : 'PPP');
+  }
+
+  return format(d, includeTimeOrFormat);
 }
 
 /**

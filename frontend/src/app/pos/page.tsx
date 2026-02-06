@@ -130,13 +130,14 @@ export default function POSPage() {
     onSuccess: (data) => {
       if (data.type === 'mpesa') {
         // Show M-Pesa waiting dialog
+        const mpesaData = data.data as { checkout_request_id: string; merchant_request_id: string };
         setMpesaDialog({
           open: true,
           status: 'pending',
-          checkoutRequestId: data.data.checkout_request_id,
+          checkoutRequestId: mpesaData.checkout_request_id,
         });
         // Start polling for status
-        pollMpesaStatus(data.data.checkout_request_id);
+        pollMpesaStatus(mpesaData.checkout_request_id);
       } else {
         // Direct payment success
         queryClient.invalidateQueries({ queryKey: ['unpaid-jobs'] });

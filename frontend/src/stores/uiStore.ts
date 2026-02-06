@@ -165,7 +165,7 @@ export const useUIStore = create<UIStore>()(
         }),
 
       // Loading actions
-      setGlobalLoading: (loading, message = null) =>
+      setGlobalLoading: (loading, message = undefined) =>
         set({
           globalLoading: loading,
           loadingMessage: message,

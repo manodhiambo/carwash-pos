@@ -142,6 +142,7 @@ SortableTableHead.displayName = 'SortableTableHead';
 // Empty state for tables
 interface TableEmptyProps {
   title?: string;
+  message?: string; // Alias for title
   description?: string;
   action?: React.ReactNode;
   icon?: React.ReactNode;
@@ -149,23 +150,24 @@ interface TableEmptyProps {
 }
 
 function TableEmpty({
-  title = 'No results found',
-  description = 'Try adjusting your search or filter to find what you\'re looking for.',
+  title,
+  message,
+  description,
   action,
   icon,
-  colSpan = 1,
 }: TableEmptyProps) {
+  const displayTitle = title || message || 'No results found';
+  const displayDescription = description || (message ? undefined : 'Try adjusting your search or filter to find what you\'re looking for.');
+
   return (
-    <TableRow>
-      <TableCell colSpan={colSpan} className="h-64">
-        <div className="flex flex-col items-center justify-center text-center">
-          {icon && <div className="mb-4 text-muted-foreground">{icon}</div>}
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <p className="mt-1 text-sm text-muted-foreground max-w-sm">{description}</p>
-          {action && <div className="mt-4">{action}</div>}
-        </div>
-      </TableCell>
-    </TableRow>
+    <div className="flex flex-col items-center justify-center text-center py-12">
+      {icon && <div className="mb-4 text-muted-foreground">{icon}</div>}
+      <h3 className="text-lg font-semibold">{displayTitle}</h3>
+      {displayDescription && (
+        <p className="mt-1 text-sm text-muted-foreground max-w-sm">{displayDescription}</p>
+      )}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useUIStore } from '@/stores/uiStore';
 
@@ -58,20 +58,37 @@ export function useApiCall<T>() {
 }
 
 // Dashboard hooks
-export function useDashboardStats() {
+export function useDashboardMetrics() {
   return useQuery({
-    queryKey: ['dashboard', 'stats'],
-    queryFn: () => api.dashboard.getStats(),
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // 1 minute
+    queryKey: ['dashboard', 'metrics'],
+    queryFn: () => api.dashboard.getMetrics(),
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
   });
 }
 
-export function useRecentJobs() {
+export function useDashboardQueue() {
   return useQuery({
-    queryKey: ['dashboard', 'recentJobs'],
-    queryFn: () => api.dashboard.getRecentJobs(),
-    staleTime: 10 * 1000, // 10 seconds
+    queryKey: ['dashboard', 'queue'],
+    queryFn: () => api.dashboard.getQueue(),
+    staleTime: 10 * 1000,
+  });
+}
+
+export function useDashboardAlerts() {
+  return useQuery({
+    queryKey: ['dashboard', 'alerts'],
+    queryFn: () => api.dashboard.getAlerts(),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useDashboardBayStatus() {
+  return useQuery({
+    queryKey: ['dashboard', 'bayStatus'],
+    queryFn: () => api.dashboard.getBayStatus(),
+    staleTime: 15 * 1000,
+    refetchInterval: 30 * 1000,
   });
 }
 
@@ -79,14 +96,14 @@ export function useRecentJobs() {
 export function useJobs(params?: { status?: string; page?: number; limit?: number }) {
   return useQuery({
     queryKey: ['jobs', params],
-    queryFn: () => api.jobs.list(params),
+    queryFn: () => api.jobs.getAll(params),
   });
 }
 
 export function useJob(id: string) {
   return useQuery({
     queryKey: ['jobs', id],
-    queryFn: () => api.jobs.get(id),
+    queryFn: () => api.jobs.getById(id),
     enabled: !!id,
   });
 }
@@ -96,7 +113,7 @@ export function useCreateJob() {
   const { addNotification } = useUIStore();
 
   return useMutation({
-    mutationFn: (data: any) => api.jobs.create(data),
+    mutationFn: (data: any) => api.jobs.checkIn(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -116,12 +133,12 @@ export function useCreateJob() {
   });
 }
 
-export function useUpdateJob() {
+export function useUpdateJobStatus() {
   const queryClient = useQueryClient();
   const { addNotification } = useUIStore();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => api.jobs.update(id, data),
+    mutationFn: ({ id, status }: { id: string; status: string }) => api.jobs.updateStatus(id, status as any),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['jobs', id] });
@@ -131,7 +148,7 @@ export function useUpdateJob() {
       addNotification({
         type: 'error',
         title: 'Error',
-        message: error.response?.data?.message || 'Failed to update job',
+        message: error.response?.data?.message || 'Failed to update job status',
       });
     },
   });
@@ -141,14 +158,14 @@ export function useUpdateJob() {
 export function useCustomers(params?: { search?: string; page?: number; limit?: number }) {
   return useQuery({
     queryKey: ['customers', params],
-    queryFn: () => api.customers.list(params),
+    queryFn: () => api.customers.getAll(params),
   });
 }
 
 export function useCustomer(id: string) {
   return useQuery({
     queryKey: ['customers', id],
-    queryFn: () => api.customers.get(id),
+    queryFn: () => api.customers.getById(id),
     enabled: !!id,
   });
 }
@@ -181,14 +198,14 @@ export function useCreateCustomer() {
 export function useVehicles(params?: { customerId?: string; search?: string }) {
   return useQuery({
     queryKey: ['vehicles', params],
-    queryFn: () => api.vehicles.list(params),
+    queryFn: () => api.vehicles.getAll(params),
   });
 }
 
 export function useSearchVehicle(plate: string) {
   return useQuery({
     queryKey: ['vehicles', 'search', plate],
-    queryFn: () => api.vehicles.searchByPlate(plate),
+    queryFn: () => api.vehicles.getByRegistration(plate),
     enabled: plate.length >= 3,
   });
 }
@@ -197,8 +214,8 @@ export function useSearchVehicle(plate: string) {
 export function useServices(params?: { category?: string; vehicleType?: string }) {
   return useQuery({
     queryKey: ['services', params],
-    queryFn: () => api.services.list(params),
-    staleTime: 5 * 60 * 1000, // 5 minutes - services don't change often
+    queryFn: () => api.services.getAll(params),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -206,18 +223,9 @@ export function useServices(params?: { category?: string; vehicleType?: string }
 export function useBays() {
   return useQuery({
     queryKey: ['bays'],
-    queryFn: () => api.bays.list(),
+    queryFn: () => api.bays.getAll(),
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
-  });
-}
-
-export function useBayStatus() {
-  return useQuery({
-    queryKey: ['bays', 'status'],
-    queryFn: () => api.bays.getStatus(),
-    staleTime: 10 * 1000,
-    refetchInterval: 30 * 1000,
   });
 }
 
@@ -225,7 +233,7 @@ export function useBayStatus() {
 export function useInventory(params?: { category?: string; lowStock?: boolean }) {
   return useQuery({
     queryKey: ['inventory', params],
-    queryFn: () => api.inventory.list(params),
+    queryFn: () => api.inventory.getAll(params),
   });
 }
 
@@ -234,8 +242,8 @@ export function useUpdateStock() {
   const { addNotification } = useUIStore();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { quantity: number; type: 'add' | 'remove'; reason?: string } }) =>
-      api.inventory.updateStock(id, data),
+    mutationFn: ({ id, newQuantity, reason }: { id: string; newQuantity: number; reason: string }) =>
+      api.inventory.adjustStock(id, newQuantity, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -256,10 +264,10 @@ export function useUpdateStock() {
 }
 
 // Payments hooks
-export function usePayments(params?: { jobId?: string; method?: string; startDate?: string; endDate?: string }) {
+export function usePayments(params?: { payment_method?: string; payment_status?: string; date?: string; page?: number; limit?: number }) {
   return useQuery({
     queryKey: ['payments', params],
-    queryFn: () => api.payments.list(params),
+    queryFn: () => api.payments.getAll(params),
   });
 }
 
@@ -293,7 +301,8 @@ export function useInitiateMpesa() {
   const { addNotification } = useUIStore();
 
   return useMutation({
-    mutationFn: (data: { phone: string; amount: number; jobId: string }) => api.payments.initiateMpesa(data),
+    mutationFn: ({ jobId, phone, amount }: { jobId: string; phone: string; amount: number }) =>
+      api.payments.initiateMpesa(jobId, phone, amount),
     onSuccess: () => {
       addNotification({
         type: 'info',
@@ -316,15 +325,15 @@ export function useCheckMpesaStatus(checkoutRequestId: string) {
     queryKey: ['mpesa', 'status', checkoutRequestId],
     queryFn: () => api.payments.checkMpesaStatus(checkoutRequestId),
     enabled: !!checkoutRequestId,
-    refetchInterval: 5000, // Poll every 5 seconds
+    refetchInterval: 5000,
   });
 }
 
 // Subscriptions hooks
-export function useSubscriptions(params?: { customerId?: string; status?: string }) {
+export function useSubscriptions(params?: { customer_id?: string; status?: string; page?: number; limit?: number }) {
   return useQuery({
     queryKey: ['subscriptions', params],
-    queryFn: () => api.subscriptions.list(params),
+    queryFn: () => api.subscriptions.getAll(params),
   });
 }
 
@@ -340,7 +349,7 @@ export function useSubscriptionPlans() {
 export function useExpenses(params?: { category?: string; status?: string; startDate?: string; endDate?: string }) {
   return useQuery({
     queryKey: ['expenses', params],
-    queryFn: () => api.expenses.list(params),
+    queryFn: () => api.expenses.getAll(params),
   });
 }
 
@@ -372,7 +381,7 @@ export function useCreateExpense() {
 export function useCashSessions() {
   return useQuery({
     queryKey: ['cashSessions'],
-    queryFn: () => api.cashSessions.list(),
+    queryFn: () => api.cashSessions.getAll(),
   });
 }
 
@@ -390,7 +399,7 @@ export function useOpenCashSession() {
   const { addNotification } = useUIStore();
 
   return useMutation({
-    mutationFn: (data: { openingBalance: number }) => api.cashSessions.open(data),
+    mutationFn: (openingBalance: number) => api.cashSessions.open(openingBalance),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cashSessions'] });
       addNotification({
@@ -414,7 +423,8 @@ export function useCloseCashSession() {
   const { addNotification } = useUIStore();
 
   return useMutation({
-    mutationFn: (data: { closingBalance: number; notes?: string }) => api.cashSessions.close(data),
+    mutationFn: ({ closingBalance, notes }: { closingBalance: number; notes?: string }) =>
+      api.cashSessions.close(closingBalance, notes),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cashSessions'] });
       addNotification({
@@ -434,25 +444,25 @@ export function useCloseCashSession() {
 }
 
 // Reports hooks
-export function useSalesReport(params: { startDate: string; endDate: string; groupBy?: string }) {
+export function useSalesReport(params: { start_date: string; end_date: string; group_by?: string }) {
   return useQuery({
     queryKey: ['reports', 'sales', params],
-    queryFn: () => api.reports.getSales(params),
+    queryFn: () => api.reports.getSales(params as any),
   });
 }
 
-export function useCustomerReport(params: { startDate: string; endDate: string }) {
+export function useCustomerReport(params: { start_date: string; end_date: string }) {
   return useQuery({
     queryKey: ['reports', 'customers', params],
-    queryFn: () => api.reports.getCustomers(params),
+    queryFn: () => api.reports.getCustomerReport(params as any),
   });
 }
 
 // Users/Staff hooks
-export function useUsers(params?: { role?: string; status?: string }) {
+export function useUsers(params?: { page?: number; limit?: number }) {
   return useQuery({
     queryKey: ['users', params],
-    queryFn: () => api.users.list(params),
+    queryFn: () => api.users.getAll(params),
   });
 }
 
@@ -481,10 +491,10 @@ export function useCreateUser() {
 }
 
 // Settings hooks
-export function useSettings() {
+export function useSettings(category?: string) {
   return useQuery({
-    queryKey: ['settings'],
-    queryFn: () => api.settings.get(),
+    queryKey: ['settings', category],
+    queryFn: () => api.settings.getAll(category),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -494,7 +504,7 @@ export function useUpdateSettings() {
   const { addNotification } = useUIStore();
 
   return useMutation({
-    mutationFn: (data: any) => api.settings.update(data),
+    mutationFn: (settings: Array<{ key: string; value: string }>) => api.settings.updateBulk(settings),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       addNotification({
@@ -517,6 +527,6 @@ export function useUpdateSettings() {
 export function useActivityLogs(params?: { userId?: string; action?: string; resource?: string; startDate?: string; endDate?: string }) {
   return useQuery({
     queryKey: ['activityLogs', params],
-    queryFn: () => api.activityLogs.list(params),
+    queryFn: () => api.activityLogs.getAll(params as any),
   });
 }

@@ -5,9 +5,42 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const Dialog = DialogPrimitive.Root;
+const DialogRoot = DialogPrimitive.Root;
 
 const DialogTrigger = DialogPrimitive.Trigger;
+
+// Convenience wrapper with title and description
+interface DialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  title?: string;
+  description?: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+function Dialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  className,
+}: DialogProps) {
+  return (
+    <DialogRoot open={open} onOpenChange={onOpenChange}>
+      <DialogContent className={className}>
+        {(title || description) && (
+          <DialogHeader>
+            {title && <DialogTitle>{title}</DialogTitle>}
+            {description && <DialogDescription>{description}</DialogDescription>}
+          </DialogHeader>
+        )}
+        {children}
+      </DialogContent>
+    </DialogRoot>
+  );
+}
 
 const DialogPortal = DialogPrimitive.Portal;
 
@@ -150,7 +183,7 @@ function AlertDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogRoot open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -206,12 +239,13 @@ function AlertDialog({
           </button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+    </DialogRoot>
   );
 }
 
 export {
   Dialog,
+  DialogRoot,
   DialogPortal,
   DialogOverlay,
   DialogClose,
