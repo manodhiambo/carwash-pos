@@ -205,9 +205,9 @@ export default function CheckInPage() {
       const job = await checkIn({
         registration_no: data.registration_number.replace(/\s/g, '').toUpperCase(),
         vehicle_type: data.vehicle_type as VehicleType,
-        make: data.make,
-        model: data.model,
-        color: data.color,
+        vehicle_make: data.make,
+        vehicle_model: data.model,
+        vehicle_color: data.color,
         customer_name: data.customer_name,
         customer_phone: data.customer_phone,
         services: data.services.map((id: string) => ({ service_id: Number(id), quantity: 1 })),

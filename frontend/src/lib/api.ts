@@ -92,9 +92,18 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor with token refresh
+// Response interceptor with token refresh and pagination normalization
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Normalize pagination keys from backend camelCase to snake_case aliases
+    if (response.data?.pagination) {
+      const p = response.data.pagination;
+      if (p.totalPages !== undefined) p.total_pages = p.totalPages;
+      if (p.hasNext !== undefined) p.has_next = p.hasNext;
+      if (p.hasPrev !== undefined) p.has_prev = p.hasPrev;
+    }
+    return response;
+  },
   async (error: AxiosError<ApiError>) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
@@ -611,6 +620,78 @@ export const servicesApi = {
 // Jobs API
 // ============================================
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function transformJob(raw: any): Job {
+  const amountPaid = parseFloat(raw.amount_paid || '0');
+  const finalAmount = parseFloat(raw.final_amount || raw.total_amount || '0');
+  let paymentStatus: 'unpaid' | 'partial' | 'paid' | 'refunded' = 'unpaid';
+  if (raw.status === 'paid' || (finalAmount > 0 && amountPaid >= finalAmount)) {
+    paymentStatus = 'paid';
+  } else if (amountPaid > 0) {
+    paymentStatus = 'partial';
+  }
+
+  return {
+    ...raw,
+    // Map backend field names to frontend field names
+    job_number: raw.job_no || raw.job_number,
+    check_in_time: raw.created_at,
+    estimated_duration: raw.estimated_completion
+      ? Math.round((new Date(raw.estimated_completion).getTime() - new Date(raw.created_at).getTime()) / 60000)
+      : 30,
+    priority: raw.priority || 'normal',
+    payment_status: paymentStatus,
+    subtotal: parseFloat(raw.total_amount || '0'),
+    total_amount: parseFloat(raw.final_amount || raw.total_amount || '0'),
+    discount_amount: parseFloat(raw.discount_amount || '0'),
+    tax_amount: 0,
+    // Nest vehicle data
+    vehicle: raw.vehicle || {
+      id: raw.vehicle_id,
+      registration_number: raw.registration_no,
+      vehicle_type: raw.vehicle_type,
+      color: raw.color,
+      make: raw.make,
+      model: raw.model,
+    },
+    // Nest customer data
+    customer: raw.customer || (raw.customer_name ? {
+      id: raw.customer_id,
+      name: raw.customer_name,
+      phone: raw.customer_phone,
+    } : undefined),
+    // Nest bay data
+    bay: raw.bay || (raw.bay_name ? {
+      id: raw.bay_id,
+      name: raw.bay_name,
+      bay_number: raw.bay_number,
+    } : undefined),
+    // Nest assigned staff data
+    assigned_staff: raw.assigned_staff || (raw.assigned_staff_name ? {
+      id: raw.assigned_staff_id,
+      name: raw.assigned_staff_name,
+    } : undefined),
+    // Services (from single job endpoint, list endpoint doesn't include them)
+    services: raw.services
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? raw.services.map((s: any) => ({
+          ...s,
+          service: s.service || { id: s.service_id, name: s.service_name, category: s.category },
+        }))
+      : [],
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function transformPagination(raw: any) {
+  return {
+    ...raw,
+    total_pages: raw.totalPages ?? raw.total_pages,
+    has_next: raw.hasNext ?? raw.has_next,
+    has_prev: raw.hasPrev ?? raw.has_prev,
+  };
+}
+
 export const jobsApi = {
   getAll: async (params?: PaginationParams & {
     status?: string;
@@ -620,8 +701,14 @@ export const jobsApi = {
     date?: string;
   }): Promise<PaginatedResponse<Job>> => {
     try {
-      const response = await apiClient.get<PaginatedResponse<Job>>('/jobs', { params });
-      return response.data;
+      const response = await apiClient.get('/jobs', { params });
+      const raw = response.data;
+      return {
+        ...raw,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: (raw.data || []).map((j: any) => transformJob(j)),
+        pagination: transformPagination(raw.pagination || {}),
+      };
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
     }
@@ -629,8 +716,11 @@ export const jobsApi = {
 
   getById: async (id: string): Promise<ApiResponse<Job>> => {
     try {
-      const response = await apiClient.get<ApiResponse<Job>>(`/jobs/${id}`);
-      return response.data;
+      const response = await apiClient.get(`/jobs/${id}`);
+      return {
+        ...response.data,
+        data: transformJob(response.data.data),
+      };
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
     }
@@ -638,8 +728,11 @@ export const jobsApi = {
 
   getByJobNumber: async (jobNumber: string): Promise<ApiResponse<Job>> => {
     try {
-      const response = await apiClient.get<ApiResponse<Job>>(`/jobs/number/${jobNumber}`);
-      return response.data;
+      const response = await apiClient.get(`/jobs/number/${jobNumber}`);
+      return {
+        ...response.data,
+        data: transformJob(response.data.data),
+      };
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
     }
@@ -647,8 +740,11 @@ export const jobsApi = {
 
   checkIn: async (data: CheckInPayload): Promise<ApiResponse<Job>> => {
     try {
-      const response = await apiClient.post<ApiResponse<Job>>('/jobs/check-in', data);
-      return response.data;
+      const response = await apiClient.post('/jobs/check-in', data);
+      return {
+        ...response.data,
+        data: transformJob(response.data.data),
+      };
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
     }

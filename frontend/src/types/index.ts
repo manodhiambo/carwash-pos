@@ -209,7 +209,7 @@ export interface Job {
   updated_at: string;
 }
 
-export type JobStatus = 'pending' | 'queued' | 'in_progress' | 'washing' | 'drying' | 'finishing' | 'completed' | 'cancelled';
+export type JobStatus = 'checked_in' | 'in_queue' | 'washing' | 'detailing' | 'completed' | 'paid' | 'cancelled';
 
 export type JobPriority = 'normal' | 'high' | 'urgent';
 
@@ -246,9 +246,9 @@ export interface CheckInFormData {
 export interface CheckInPayload {
   registration_no: string;
   vehicle_type: VehicleType;
-  make?: string;
-  model?: string;
-  color?: string;
+  vehicle_make?: string;
+  vehicle_model?: string;
+  vehicle_color?: string;
   customer_name?: string;
   customer_phone?: string;
   services: { service_id: number; quantity: number }[];
@@ -648,6 +648,10 @@ export interface PaginatedResponse<T> {
     page: number;
     limit: number;
     total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+    // Snake_case aliases (populated by response interceptor)
     total_pages: number;
     has_next: boolean;
     has_prev: boolean;

@@ -54,13 +54,12 @@ import { Job, JobStatus } from '@/types';
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'queued', label: 'Queued' },
-  { value: 'in_progress', label: 'In Progress' },
+  { value: 'checked_in', label: 'Checked In' },
+  { value: 'in_queue', label: 'In Queue' },
   { value: 'washing', label: 'Washing' },
-  { value: 'drying', label: 'Drying' },
-  { value: 'finishing', label: 'Finishing' },
+  { value: 'detailing', label: 'Detailing' },
   { value: 'completed', label: 'Completed' },
+  { value: 'paid', label: 'Paid' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
@@ -127,10 +126,10 @@ export default function JobsPage() {
   const filteredJobs = React.useMemo(() => {
     if (activeTab === 'active') {
       return jobs.filter((j) =>
-        ['pending', 'queued', 'in_progress', 'washing', 'drying', 'finishing'].includes(j.status)
+        ['checked_in', 'in_queue', 'washing', 'detailing'].includes(j.status)
       );
     } else if (activeTab === 'completed') {
-      return jobs.filter((j) => j.status === 'completed');
+      return jobs.filter((j) => j.status === 'completed' || j.status === 'paid');
     } else if (activeTab === 'unpaid') {
       return jobs.filter((j) => j.payment_status !== 'paid' && j.status === 'completed');
     }
@@ -140,12 +139,10 @@ export default function JobsPage() {
   // Get next status
   const getNextStatus = (currentStatus: JobStatus): JobStatus | null => {
     const flow: Record<string, JobStatus> = {
-      pending: 'queued',
-      queued: 'in_progress',
-      in_progress: 'washing',
-      washing: 'drying',
-      drying: 'finishing',
-      finishing: 'completed',
+      checked_in: 'in_queue',
+      in_queue: 'washing',
+      washing: 'detailing',
+      detailing: 'completed',
     };
     return flow[currentStatus] || null;
   };
@@ -210,7 +207,7 @@ export default function JobsPage() {
             Active Jobs
             <Badge variant="secondary" className="ml-2">
               {jobs.filter((j) =>
-                ['pending', 'queued', 'in_progress', 'washing', 'drying', 'finishing'].includes(
+                ['checked_in', 'in_queue', 'washing', 'detailing'].includes(
                   j.status
                 )
               ).length}
@@ -366,6 +363,7 @@ export default function JobsPage() {
                                   </Link>
                                 </DropdownMenuItem>
                                 {job.status !== 'completed' &&
+                                  job.status !== 'paid' &&
                                   job.status !== 'cancelled' &&
                                   nextStatus && (
                                     <DropdownMenuItem
@@ -375,7 +373,7 @@ export default function JobsPage() {
                                       Move to {nextStatus.replace('_', ' ')}
                                     </DropdownMenuItem>
                                   )}
-                                {job.status === 'completed' &&
+                                {(job.status === 'completed') &&
                                   job.payment_status !== 'paid' && (
                                     <DropdownMenuItem asChild>
                                       <Link href={`/pos?job=${job.id}`}>
@@ -386,6 +384,7 @@ export default function JobsPage() {
                                   )}
                                 <DropdownMenuSeparator />
                                 {job.status !== 'completed' &&
+                                  job.status !== 'paid' &&
                                   job.status !== 'cancelled' && (
                                     <DropdownMenuItem
                                       className="text-destructive focus:text-destructive"

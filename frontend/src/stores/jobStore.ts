@@ -119,7 +119,7 @@ export const useJobStore = create<JobStore>((set, get) => ({
         const queueIndex = state.queue.findIndex((j) => j.id === id);
         const newQueue = [...state.queue];
         if (queueIndex !== -1) {
-          if (status === 'in_progress' || status === 'washing') {
+          if (status === 'washing' || status === 'detailing') {
             // Move from queue to active
             newQueue.splice(queueIndex, 1);
             return {
