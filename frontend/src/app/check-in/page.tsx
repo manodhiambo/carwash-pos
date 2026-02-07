@@ -400,14 +400,19 @@ export default function CheckInPage() {
                               }`}
                             >
                               <div className="flex items-center gap-3">
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={() => toggleService(String(service.id))}
-                                />
+                                <div
+                                  className="flex items-center justify-center"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => toggleService(String(service.id))}
+                                  />
+                                </div>
                                 <div>
                                   <div className="font-medium">{service.name}</div>
                                   <div className="text-sm text-muted-foreground">
-                                    {service.duration_minutes} min
+                                    {service.duration_minutes || 0} min
                                   </div>
                                 </div>
                               </div>
@@ -441,7 +446,12 @@ export default function CheckInPage() {
                                       : 'border-border hover:border-primary/50'
                                   }`}
                                 >
-                                  <Checkbox checked={isSelected} />
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={() => toggleService(String(service.id))}
+                                    />
+                                  </div>
                                   <div className="flex-1">
                                     <div className="text-sm font-medium">{service.name}</div>
                                   </div>
