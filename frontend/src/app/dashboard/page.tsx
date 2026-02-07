@@ -130,7 +130,7 @@ export default function DashboardPage() {
       />
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 mb-8">
         {metricsLoading ? (
           <>
             {Array.from({ length: 4 }).map((_, i) => (

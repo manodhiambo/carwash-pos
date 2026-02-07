@@ -137,7 +137,7 @@ export default function CustomerDetailPage() {
     make: '',
     model: '',
     color: '',
-    type: 'sedan',
+    type: 'saloon',
   });
 
   const [pointsForm, setPointsForm] = useState({
@@ -178,7 +178,7 @@ export default function CustomerDetailPage() {
             make: 'Toyota',
             model: 'Camry',
             color: 'Silver',
-            type: 'sedan',
+            type: 'saloon',
             lastWash: '2024-02-18T14:30:00Z',
             totalWashes: 18,
           },
@@ -293,7 +293,7 @@ export default function CustomerDetailPage() {
     try {
       // API call would go here
       setIsVehicleDialogOpen(false);
-      setVehicleForm({ plate: '', make: '', model: '', color: '', type: 'sedan' });
+      setVehicleForm({ plate: '', make: '', model: '', color: '', type: 'saloon' });
       fetchCustomer();
     } catch (error) {
       console.error('Error adding vehicle:', error);
@@ -993,12 +993,13 @@ export default function CustomerDetailPage() {
                   value={vehicleForm.type}
                   onValueChange={(value) => setVehicleForm({ ...vehicleForm, type: value })}
                   options={[
-                    { value: 'sedan', label: 'Sedan' },
+                    { value: 'saloon', label: 'Saloon' },
                     { value: 'suv', label: 'SUV' },
                     { value: 'pickup', label: 'Pickup' },
                     { value: 'van', label: 'Van' },
                     { value: 'motorcycle', label: 'Motorcycle' },
                     { value: 'truck', label: 'Truck' },
+                    { value: 'trailer', label: 'Trailer' },
                   ]}
                 />
               </div>

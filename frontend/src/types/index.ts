@@ -122,7 +122,7 @@ export interface Vehicle {
   updated_at: string;
 }
 
-export type VehicleType = 'sedan' | 'suv' | 'pickup' | 'van' | 'motorcycle' | 'bus' | 'truck';
+export type VehicleType = 'saloon' | 'suv' | 'pickup' | 'van' | 'motorcycle' | 'bus' | 'truck' | 'trailer';
 
 export interface VehicleFormData {
   registration_number: string;
@@ -167,9 +167,11 @@ export interface ServiceFormData {
   name: string;
   description?: string;
   category: ServiceCategory;
+  base_price?: number;
   duration_minutes: number;
   is_addon: boolean;
-  prices: { vehicle_type: VehicleType; price: number }[];
+  pricing?: { vehicle_type: VehicleType; price: number }[];
+  [key: string]: unknown;
 }
 
 // ============================================
@@ -239,6 +241,21 @@ export interface CheckInFormData {
   notes?: string;
   bay_id?: string;
   assigned_staff_id?: string;
+}
+
+export interface CheckInPayload {
+  registration_no: string;
+  vehicle_type: VehicleType;
+  make?: string;
+  model?: string;
+  color?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  services: { service_id: number; quantity: number }[];
+  priority?: JobPriority;
+  bay_id?: string;
+  assigned_staff_id?: string;
+  notes?: string;
 }
 
 // ============================================

@@ -132,7 +132,7 @@ export default function SubscriptionsPage() {
   const [planForm, setPlanForm] = useState({
     name: '',
     description: '',
-    vehicleType: 'sedan',
+    vehicleType: 'saloon',
     price: '',
     duration: '30',
     durationUnit: 'days' as 'days' | 'weeks' | 'months',
@@ -179,7 +179,7 @@ export default function SubscriptionsPage() {
           id: '1',
           name: 'Basic Monthly',
           description: 'Perfect for regular car owners who wash once a week',
-          vehicleType: 'sedan',
+          vehicleType: 'saloon',
           price: 2500,
           duration: 30,
           durationUnit: 'days',
@@ -194,7 +194,7 @@ export default function SubscriptionsPage() {
           id: '2',
           name: 'Premium Monthly',
           description: 'Unlimited washes with full service included',
-          vehicleType: 'sedan',
+          vehicleType: 'saloon',
           price: 4500,
           duration: 30,
           durationUnit: 'days',
@@ -224,7 +224,7 @@ export default function SubscriptionsPage() {
           id: '4',
           name: 'Fleet Basic',
           description: 'Economical option for fleet vehicles',
-          vehicleType: 'sedan',
+          vehicleType: 'saloon',
           price: 1800,
           duration: 30,
           durationUnit: 'days',
@@ -248,7 +248,7 @@ export default function SubscriptionsPage() {
           planName: 'Premium Monthly',
           vehicleId: 'v1',
           vehiclePlate: 'KDA 123A',
-          vehicleType: 'sedan',
+          vehicleType: 'saloon',
           startDate: '2024-01-20T00:00:00Z',
           endDate: '2024-02-20T00:00:00Z',
           washesUsed: 8,
@@ -267,7 +267,7 @@ export default function SubscriptionsPage() {
           planName: 'Basic Monthly',
           vehicleId: 'v2',
           vehiclePlate: 'KCA 456B',
-          vehicleType: 'sedan',
+          vehicleType: 'saloon',
           startDate: '2024-02-01T00:00:00Z',
           endDate: '2024-03-01T00:00:00Z',
           washesUsed: 3,
@@ -305,7 +305,7 @@ export default function SubscriptionsPage() {
           planName: 'Fleet Basic',
           vehicleId: 'v4',
           vehiclePlate: 'KBZ 012D',
-          vehicleType: 'sedan',
+          vehicleType: 'saloon',
           startDate: '2024-02-10T00:00:00Z',
           endDate: '2024-03-10T00:00:00Z',
           washesUsed: 5,
@@ -454,7 +454,7 @@ export default function SubscriptionsPage() {
     setPlanForm({
       name: '',
       description: '',
-      vehicleType: 'sedan',
+      vehicleType: 'saloon',
       price: '',
       duration: '30',
       durationUnit: 'days',
@@ -1026,12 +1026,13 @@ export default function SubscriptionsPage() {
                   value={planForm.vehicleType}
                   onValueChange={(value) => setPlanForm({ ...planForm, vehicleType: value })}
                   options={[
-                    { value: 'sedan', label: 'Sedan' },
+                    { value: 'saloon', label: 'Saloon' },
                     { value: 'suv', label: 'SUV' },
                     { value: 'pickup', label: 'Pickup' },
                     { value: 'van', label: 'Van' },
                     { value: 'motorcycle', label: 'Motorcycle' },
                     { value: 'truck', label: 'Truck' },
+                    { value: 'trailer', label: 'Trailer' },
                   ]}
                 />
               </div>

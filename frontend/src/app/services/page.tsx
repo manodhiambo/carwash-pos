@@ -70,7 +70,7 @@ const serviceCategories: { value: ServiceCategory; label: string; icon: React.El
 ];
 
 const vehicleTypes: { value: VehicleType; label: string }[] = [
-  { value: 'sedan', label: 'Sedan' },
+  { value: 'saloon', label: 'Saloon' },
   { value: 'suv', label: 'SUV' },
   { value: 'pickup', label: 'Pickup' },
   { value: 'van', label: 'Van' },
@@ -116,7 +116,7 @@ export default function ServicesPage() {
       category: 'wash',
       duration_minutes: 30,
       is_addon: false,
-      prices: {},
+      prices: Object.fromEntries(vehicleTypes.map((vt) => [vt.value, 0])),
     },
   });
 
@@ -132,14 +132,18 @@ export default function ServicesPage() {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: (data: ServiceFormData) =>
-      servicesApi.create({
+    mutationFn: (data: ServiceFormData) => {
+      const priceValues = Object.values(data.prices).filter((p) => p > 0);
+      const base_price = priceValues.length > 0 ? Math.min(...priceValues) : 0;
+      return servicesApi.create({
         ...data,
-        prices: Object.entries(data.prices).map(([vehicle_type, price]) => ({
+        base_price,
+        pricing: Object.entries(data.prices).map(([vehicle_type, price]) => ({
           vehicle_type: vehicle_type as VehicleType,
           price,
         })),
-      }),
+      } as ServiceFormData);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       toast.success('Service created successfully');
@@ -153,16 +157,20 @@ export default function ServicesPage() {
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<ServiceFormData> }) =>
-      servicesApi.update(id, {
+    mutationFn: ({ id, data }: { id: string; data: Partial<ServiceFormData> }) => {
+      const priceValues = data.prices ? Object.values(data.prices).filter((p) => p > 0) : [];
+      const base_price = priceValues.length > 0 ? Math.min(...priceValues) : undefined;
+      return servicesApi.update(id, {
         ...data,
-        prices: data.prices
+        base_price,
+        pricing: data.prices
           ? Object.entries(data.prices).map(([vehicle_type, price]) => ({
               vehicle_type: vehicle_type as VehicleType,
               price,
             }))
           : undefined,
-      }),
+      } as Partial<ServiceFormData>);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       toast.success('Service updated successfully');
@@ -199,7 +207,10 @@ export default function ServicesPage() {
       setValue('duration_minutes', service.duration_minutes);
       setValue('is_addon', service.is_addon);
       const prices: Record<string, number> = {};
-      // Handle both 'prices' and 'pricing' from backend
+      // Initialize all vehicle types to 0, then overlay existing prices
+      vehicleTypes.forEach((vt) => {
+        prices[vt.value] = 0;
+      });
       const servicePricing = service.prices || service.pricing || [];
       servicePricing.forEach((p) => {
         prices[p.vehicle_type] = p.price;
@@ -238,7 +249,7 @@ export default function ServicesPage() {
           <TableHead>Service</TableHead>
           <TableHead>Category</TableHead>
           <TableHead>Duration</TableHead>
-          <TableHead>Sedan</TableHead>
+          <TableHead>Saloon</TableHead>
           <TableHead>SUV</TableHead>
           <TableHead>Pickup</TableHead>
           <TableHead>Van</TableHead>
@@ -286,7 +297,7 @@ export default function ServicesPage() {
                   {service.duration_minutes} min
                 </div>
               </TableCell>
-              <TableCell>{formatCurrency(getServicePrice(service, 'sedan'))}</TableCell>
+              <TableCell>{formatCurrency(getServicePrice(service, 'saloon'))}</TableCell>
               <TableCell>{formatCurrency(getServicePrice(service, 'suv'))}</TableCell>
               <TableCell>{formatCurrency(getServicePrice(service, 'pickup'))}</TableCell>
               <TableCell>{formatCurrency(getServicePrice(service, 'van'))}</TableCell>

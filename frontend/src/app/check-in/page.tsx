@@ -37,13 +37,14 @@ import toast from 'react-hot-toast';
 import { VehicleType, Service, JobPriority } from '@/types';
 
 const vehicleTypes = [
-  { value: 'sedan', label: 'Sedan / Saloon' },
+  { value: 'saloon', label: 'Sedan / Saloon' },
   { value: 'suv', label: 'SUV / 4x4' },
   { value: 'pickup', label: 'Pickup Truck' },
   { value: 'van', label: 'Van / Minibus' },
   { value: 'motorcycle', label: 'Motorcycle' },
   { value: 'bus', label: 'Bus / Matatu' },
   { value: 'truck', label: 'Truck / Lorry' },
+  { value: 'trailer', label: 'Trailer' },
 ];
 
 const priorities = [
@@ -87,7 +88,7 @@ export default function CheckInPage() {
     resolver: zodResolver(checkInSchema),
     defaultValues: {
       registration_number: '',
-      vehicle_type: 'sedan',
+      vehicle_type: 'saloon',
       services: [],
       priority: 'normal',
     },
@@ -202,14 +203,14 @@ export default function CheckInPage() {
   const onSubmit = async (data: CheckInFormData) => {
     try {
       const job = await checkIn({
-        registration_number: data.registration_number.replace(/\s/g, '').toUpperCase(),
+        registration_no: data.registration_number.replace(/\s/g, '').toUpperCase(),
         vehicle_type: data.vehicle_type as VehicleType,
         make: data.make,
         model: data.model,
         color: data.color,
         customer_name: data.customer_name,
         customer_phone: data.customer_phone,
-        services: data.services,
+        services: data.services.map((id: string) => ({ service_id: Number(id), quantity: 1 })),
         priority: data.priority as JobPriority,
         bay_id: data.bay_id,
         assigned_staff_id: data.assigned_staff_id,

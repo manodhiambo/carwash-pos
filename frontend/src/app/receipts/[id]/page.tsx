@@ -124,7 +124,7 @@ export default function ReceiptPage() {
           plate: 'KDA 123A',
           make: 'Toyota',
           model: 'Camry',
-          type: 'Sedan',
+          type: 'Saloon',
         },
 
         bay: 'Bay 1',

@@ -82,7 +82,7 @@ export const useUIStore = create<UIStore>()(
   persist(
     (set, get) => ({
       // Initial state
-      sidebarOpen: true,
+      sidebarOpen: false,
       sidebarCollapsed: false,
       theme: 'system',
       notifications: [],

@@ -3,7 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
 import { useSidebar, useAuthStore } from '@/stores';
 import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/ui/avatar';
@@ -37,7 +36,7 @@ interface HeaderProps {
 
 export function Header({ title, showSearch = false }: HeaderProps) {
   const pathname = usePathname();
-  const { sidebarCollapsed, toggleSidebar } = useSidebar();
+  const { toggleSidebar } = useSidebar();
   const { user, logout } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -56,10 +55,7 @@ export function Header({ title, showSearch = false }: HeaderProps) {
 
   return (
     <header
-      className={cn(
-        'sticky top-0 z-30 flex h-16 items-center border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 gap-4 transition-all duration-300',
-        sidebarCollapsed ? 'ml-16' : 'ml-64'
-      )}
+      className="sticky top-0 z-30 flex h-16 items-center border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 gap-4"
     >
       {/* Mobile menu button */}
       <Button

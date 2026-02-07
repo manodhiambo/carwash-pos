@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Job, CheckInFormData, JobStatus } from '@/types';
+import { Job, CheckInPayload, JobStatus } from '@/types';
 import { jobsApi } from '@/lib/api';
 
 interface JobState {
@@ -25,7 +25,7 @@ interface JobActions {
   fetchJobById: (id: string) => Promise<Job | null>;
 
   // Job operations
-  checkIn: (data: CheckInFormData) => Promise<Job>;
+  checkIn: (data: CheckInPayload) => Promise<Job>;
   updateStatus: (id: string, status: JobStatus) => Promise<void>;
   assignBay: (id: string, bayId: string) => Promise<void>;
   assignStaff: (id: string, staffId: string) => Promise<void>;
@@ -89,7 +89,7 @@ export const useJobStore = create<JobStore>((set, get) => ({
   },
 
   // Check in vehicle
-  checkIn: async (data: CheckInFormData) => {
+  checkIn: async (data: CheckInPayload) => {
     set({ isCheckingIn: true, error: null });
     try {
       const response = await jobsApi.checkIn(data);

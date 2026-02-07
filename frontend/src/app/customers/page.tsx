@@ -231,7 +231,7 @@ export default function CustomersPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 mb-6">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">

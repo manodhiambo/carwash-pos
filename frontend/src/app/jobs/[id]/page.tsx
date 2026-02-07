@@ -165,7 +165,7 @@ export default function JobDetailPage() {
           make: 'Toyota',
           model: 'Camry',
           color: 'Silver',
-          type: 'sedan',
+          type: 'saloon',
         },
         customer: {
           id: 'c1',

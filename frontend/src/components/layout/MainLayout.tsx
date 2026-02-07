@@ -17,9 +17,14 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { sidebarCollapsed } = useSidebar();
+  const { sidebarCollapsed, setSidebarOpen } = useSidebar();
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
   const { confirmDialog, hideConfirmDialog } = useConfirmDialog();
+
+  // Close sidebar on route changes (for mobile)
+  React.useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname, setSidebarOpen]);
 
   // Public routes that don't require authentication
   const publicRoutes = ['/', '/login', '/forgot-password', '/reset-password'];
@@ -75,7 +80,8 @@ export function MainLayout({ children }: MainLayoutProps) {
       <div
         className={cn(
           'min-h-screen transition-all duration-300',
-          sidebarCollapsed ? 'ml-16' : 'ml-64'
+          // No margin on mobile (sidebar is overlay), margin on desktop
+          sidebarCollapsed ? 'ml-0 lg:ml-16' : 'ml-0 lg:ml-64'
         )}
       >
         {/* Header */}

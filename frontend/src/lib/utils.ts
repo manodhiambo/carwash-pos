@@ -515,7 +515,8 @@ export function formatVehicleReg(reg: string): string {
  */
 export function getVehicleTypeIcon(type: string): string {
   const icons: Record<string, string> = {
-    sedan: 'Car',
+    saloon: 'Car',
+    trailer: 'Truck',
     suv: 'CarFront',
     pickup: 'Truck',
     van: 'Bus',

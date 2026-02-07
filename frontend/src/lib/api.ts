@@ -14,7 +14,7 @@ import {
   Service,
   ServiceFormData,
   Job,
-  CheckInFormData,
+  CheckInPayload,
   Payment,
   PaymentFormData,
   Bay,
@@ -645,7 +645,7 @@ export const jobsApi = {
     }
   },
 
-  checkIn: async (data: CheckInFormData): Promise<ApiResponse<Job>> => {
+  checkIn: async (data: CheckInPayload): Promise<ApiResponse<Job>> => {
     try {
       const response = await apiClient.post<ApiResponse<Job>>('/jobs/check-in', data);
       return response.data;

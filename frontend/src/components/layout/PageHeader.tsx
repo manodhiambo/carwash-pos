@@ -69,7 +69,7 @@ export function PageHeader({
       {/* Title and actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{title}</h1>
           {description && (
             <p className="text-muted-foreground mt-1">{description}</p>
           )}
@@ -88,7 +88,7 @@ interface PageContainerProps {
 
 export function PageContainer({ children, className }: PageContainerProps) {
   return (
-    <div className={cn('p-6', className)}>
+    <div className={cn('p-3 sm:p-6', className)}>
       {children}
     </div>
   );
