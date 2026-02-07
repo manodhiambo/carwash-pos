@@ -191,20 +191,27 @@ export const processPayment = asyncHandler(async (req: AuthenticatedRequest, res
     return;
   }
 
-  // Check if there's an open cash session (ONLY for cash payments)
-  if (payment_method === 'cash') {
-    const cashSession = await db.query(
+  // AUTO-CREATE cash session if it doesn't exist (for ANY payment method)
+  try {
+    const existingSession = await db.query(
       `SELECT id FROM cash_sessions WHERE branch_id = $1 AND status = 'open'`,
       [userBranchId]
     );
 
-    if (cashSession.rows.length === 0) {
-      res.status(400).json({
-        success: false,
-        error: ERROR_MESSAGES.CASH_SESSION_NOT_OPEN,
-      });
-      return;
+    if (existingSession.rows.length === 0) {
+      console.log(`🔄 Auto-opening cash session for branch ${userBranchId}`);
+      await db.query(
+        `INSERT INTO cash_sessions (
+          branch_id, opened_by, opening_balance, expected_closing, notes, 
+          status, opened_at, cash_sales, mpesa_sales, card_sales, total_sales, expenses_paid
+        ) VALUES ($1, $2, 0, 0, 'Auto-opened for payment processing', 'open', NOW(), 0, 0, 0, 0, 0)`,
+        [userBranchId, userId]
+      );
+      console.log('✅ Cash session auto-opened successfully');
     }
+  } catch (sessionError) {
+    console.error('⚠️ Error auto-creating cash session:', sessionError);
+    // Don't fail the payment - continue anyway
   }
 
   const payment = await transaction(async (client) => {
@@ -269,14 +276,8 @@ export const processPayment = asyncHandler(async (req: AuthenticatedRequest, res
       }
     }
 
-    // Update cash session totals (ONLY if a session exists)
-    // Check if there's an open cash session first
-    const openSession = await client.query(
-      `SELECT id FROM cash_sessions WHERE branch_id = $1 AND status = 'open'`,
-      [userBranchId]
-    );
-
-    if (openSession.rows.length > 0) {
+    // Update cash session totals (should always exist now after auto-create)
+    try {
       if (payment_method === 'cash') {
         await client.query(
           `UPDATE cash_sessions
@@ -300,8 +301,9 @@ export const processPayment = asyncHandler(async (req: AuthenticatedRequest, res
           [amount, userBranchId]
         );
       }
-    } else {
-      console.log('No open cash session - payment recorded but session not updated');
+    } catch (updateError) {
+      console.error('⚠️ Error updating cash session totals:', updateError);
+      // Don't fail the payment
     }
 
     return {
