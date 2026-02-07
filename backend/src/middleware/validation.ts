@@ -23,6 +23,14 @@ export const handleValidation = (
       formattedErrors[field].push(error.msg);
     });
 
+    // Log validation errors for debugging
+    console.error('=== VALIDATION ERROR ===');
+    console.error('Path:', req.path);
+    console.error('Method:', req.method);
+    console.error('Body:', JSON.stringify(req.body, null, 2));
+    console.error('Errors:', JSON.stringify(formattedErrors, null, 2));
+    console.error('======================');
+
     res.status(400).json({
       success: false,
       error: ERROR_MESSAGES.VALIDATION_ERROR,

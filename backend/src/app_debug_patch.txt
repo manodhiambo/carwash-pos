@@ -1,0 +1,4 @@
+Add this after line 68 (after requestLogger):
+
+import { detailedRequestLogger } from './middleware/requestLogger';
+app.use(detailedRequestLogger);
