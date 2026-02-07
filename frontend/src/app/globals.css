@@ -122,7 +122,7 @@
   .btn-destructive {
     @apply bg-destructive text-destructive-foreground hover:bg-destructive/90
            px-4 py-2 rounded-md font-medium transition-colors
-           focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2;
+           focus:visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2;
   }
 
   /* Input styles */
@@ -268,14 +268,6 @@
   .form-error {
     @apply text-sm font-medium text-destructive;
   }
-
-/* Fix for scrollable dialogs - makes all dialog content scrollable */
-[data-radix-dialog-content] {
-  max-height: 90vh !important;
-  overflow-y: auto !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
 
   /* Loading states */
   .skeleton {
@@ -529,4 +521,16 @@
     transform: scale(1);
     opacity: 1;
   }
+}
+
+/* ===== DIALOG SCROLLING FIX ===== */
+/* Makes all dialogs scrollable on mobile and desktop */
+[data-radix-dialog-content] {
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+}
+
+/* Ensure dialog content wrapper doesn't add extra padding */
+[data-radix-dialog-content] > div {
+  max-height: inherit;
 }
