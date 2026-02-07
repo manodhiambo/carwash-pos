@@ -246,10 +246,10 @@ export default function CustomerDetailPage() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <h2 className="text-xl font-bold">{customer.name}</h2>
-                {customer.loyalty_tier && customer.loyalty_tier.length > 0 && customer.loyalty_tier.length > 0 && (
-                  <Badge className={getTierColor(customer.loyalty_tier)}>
+                {(customer as any).loyalty_tier && (
+                  <Badge className={getTierColor((customer as any).loyalty_tier)}>
                     <Award className="h-3 w-3 mr-1" />
-                    {customer.loyalty_tier}
+                    {(customer as any).loyalty_tier}
                   </Badge>
                 )}
               </div>
@@ -338,7 +338,7 @@ export default function CustomerDetailPage() {
                           <Car className="h-5 w-5" />
                         </div>
                         <div>
-                          <div className="font-medium">{job.job_no}</div>
+                          <div className="font-medium">{job.job_number}</div>
                           <div className="text-sm text-muted-foreground">
                             {formatDate(job.created_at)}
                           </div>
@@ -346,7 +346,7 @@ export default function CustomerDetailPage() {
                       </div>
                       <div className="text-right">
                         <div className="font-medium">
-                          {formatCurrency(job.final_amount)}
+                          {formatCurrency(job.total_amount)}
                         </div>
                         <StatusBadge status={job.status === 'completed' ? 'success' : 'warning'}>
                           {job.status}
@@ -423,10 +423,10 @@ export default function CustomerDetailPage() {
                     {customer.loyalty_points?.toLocaleString() || 0}
                   </div>
                   <div className="text-sm text-muted-foreground">Available Points</div>
-                  {customer.loyalty_tier && customer.loyalty_tier.length > 0 && customer.loyalty_tier.length > 0 && (
-                    <Badge className={cn('mt-2', getTierColor(customer.loyalty_tier))}>
+                  {(customer as any).loyalty_tier && (
+                    <Badge className={cn('mt-2', getTierColor((customer as any).loyalty_tier))}>
                       <Award className="h-3 w-3 mr-1" />
-                      {customer.loyalty_tier} Member
+                      {(customer as any).loyalty_tier} Member
                     </Badge>
                   )}
                 </div>
@@ -551,13 +551,13 @@ export default function CustomerDetailPage() {
               <TableBody>
                 {jobs.map((job) => (
                   <TableRow key={job.id}>
-                    <TableCell className="font-medium">{job.job_no}</TableCell>
+                    <TableCell className="font-medium">{job.job_number}</TableCell>
                     <TableCell>{formatDate(job.created_at)}</TableCell>
                     <TableCell className="font-mono">
-                      {job.vehicle?.registration_no || '-'}
+                      {job.vehicle?.registration_number || '-'}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(job.final_amount)}
+                      {formatCurrency(job.total_amount)}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={job.status === 'completed' ? 'success' : 'warning'}>
@@ -605,9 +605,9 @@ export default function CustomerDetailPage() {
               <div className="h-20 w-20 mx-auto rounded-full bg-yellow-100 flex items-center justify-center mb-4">
                 <Award className="h-10 w-10 text-yellow-600" />
               </div>
-              {customer.loyalty_tier && customer.loyalty_tier.length > 0 && customer.loyalty_tier.length > 0 && (
-                <Badge className={cn('text-lg px-4 py-1', getTierColor(customer.loyalty_tier))}>
-                  {customer.loyalty_tier} Member
+              {(customer as any).loyalty_tier && (
+                <Badge className={cn('text-lg px-4 py-1', getTierColor((customer as any).loyalty_tier))}>
+                  {(customer as any).loyalty_tier} Member
                 </Badge>
               )}
               <div className="mt-4 text-4xl font-bold text-primary">
