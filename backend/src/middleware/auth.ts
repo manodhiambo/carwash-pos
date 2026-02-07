@@ -26,7 +26,13 @@ export const authenticate = async (
   try {
     // Get token from header
     const authHeader = req.headers.authorization;
+    
+    console.log('=== AUTH DEBUG ===');
+    console.log('Path:', req.path);
+    console.log('Auth Header:', authHeader ? `Bearer ${authHeader.substring(7, 20)}...` : 'MISSING');
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('Auth failed: No Bearer token');
       res.status(401).json({
         success: false,
         error: ERROR_MESSAGES.TOKEN_INVALID,
@@ -35,12 +41,15 @@ export const authenticate = async (
     }
 
     const token = authHeader.substring(7);
+    console.log('Token length:', token.length);
 
     // Verify token
     let decoded: JWTPayload;
     try {
       decoded = jwt.verify(token, config.jwt.secret) as JWTPayload;
+      console.log('Token decoded successfully, userId:', decoded.userId);
     } catch (error) {
+      console.log('Token verification failed:', error instanceof Error ? error.message : 'Unknown error');
       if (error instanceof jwt.TokenExpiredError) {
         res.status(401).json({
           success: false,
@@ -63,6 +72,7 @@ export const authenticate = async (
     );
 
     if (result.rows.length === 0) {
+      console.log('User not found in database, userId:', decoded.userId);
       res.status(401).json({
         success: false,
         error: ERROR_MESSAGES.USER_NOT_FOUND,
@@ -71,9 +81,11 @@ export const authenticate = async (
     }
 
     const user = result.rows[0];
+    console.log('User found:', user.username, 'status:', user.status);
 
     // Check if user is active
     if (user.status !== 'active') {
+      console.log('User inactive:', user.username);
       res.status(403).json({
         success: false,
         error: ERROR_MESSAGES.USER_INACTIVE,
@@ -83,6 +95,8 @@ export const authenticate = async (
 
     // Attach user to request
     req.user = user;
+    console.log('Auth successful for:', user.username);
+    console.log('==================');
     next();
   } catch (error) {
     console.error('Authentication error:', error);
