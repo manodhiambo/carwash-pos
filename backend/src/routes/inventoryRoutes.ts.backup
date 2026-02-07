@@ -9,21 +9,22 @@ const router = Router();
 
 router.use(authenticate);
 
-// CRITICAL: Suppliers routes MUST come BEFORE /:id routes to avoid route conflicts
+// IMPORTANT: Suppliers routes MUST come BEFORE /:id routes
+// Suppliers
 router.get('/suppliers', inventoryController.getSuppliers);
-router.post('/suppliers', canManageInventory, handleValidation, inventoryController.createSupplier);
-router.put('/suppliers/:id', canManageInventory, handleValidation, inventoryController.updateSupplier);
+router.post('/suppliers', canManageInventory, inventoryValidators.createSupplier, handleValidation, inventoryController.createSupplier);
+router.put('/suppliers/:id', canManageInventory, inventoryValidators.updateSupplier, handleValidation, inventoryController.updateSupplier);
 
-// Specific inventory routes (before parameterized routes)
+// Inventory items - specific routes before parameterized routes
 router.get('/low-stock', inventoryController.getLowStockItems);
 router.get('/value-summary', inventoryController.getValueSummary);
 router.post('/transaction', canManageInventory, inventoryValidators.stockTransaction, handleValidation, inventoryController.recordTransaction);
 
-// General inventory item routes
+// Inventory items - general routes
 router.get('/', inventoryController.getItems);
 router.post('/', canManageInventory, inventoryValidators.createItem, handleValidation, inventoryController.createItem);
 
-// Parameterized routes (MUST BE LAST to avoid conflicts)
+// Inventory items - parameterized routes (MUST BE LAST)
 router.get('/:id', inventoryController.getItem);
 router.get('/:id/transactions', inventoryController.getItemTransactions);
 router.put('/:id', canManageInventory, inventoryController.updateItem);
