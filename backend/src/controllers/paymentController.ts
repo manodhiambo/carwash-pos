@@ -132,6 +132,12 @@ export const getPayment = asyncHandler(async (req: AuthenticatedRequest, res: Re
 export const processPayment = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { job_id, amount, payment_method, reference_no, notes } = req.body;
 
+  console.log('=== PAYMENT PROCESSING DEBUG ===');
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
+  console.log('Payment method:', payment_method);
+  console.log('User branch:', req.user ? req.user.branch_id : 'none');
+  console.log('================================');
+
   if (!req.user) {
     res.status(401).json({
       success: false,
@@ -185,7 +191,7 @@ export const processPayment = asyncHandler(async (req: AuthenticatedRequest, res
     return;
   }
 
-  // Check if there's an open cash session (for cash payments)
+  // Check if there's an open cash session (ONLY for cash payments)
   if (payment_method === 'cash') {
     const cashSession = await db.query(
       `SELECT id FROM cash_sessions WHERE branch_id = $1 AND status = 'open'`,
@@ -263,29 +269,39 @@ export const processPayment = asyncHandler(async (req: AuthenticatedRequest, res
       }
     }
 
-    // Update cash session totals
-    if (payment_method === 'cash') {
-      await client.query(
-        `UPDATE cash_sessions
-         SET cash_sales = cash_sales + $1, total_sales = total_sales + $1,
-             expected_closing = opening_balance + cash_sales + $1 - expenses_paid
-         WHERE branch_id = $2 AND status = 'open'`,
-        [amount, userBranchId]
-      );
-    } else if (payment_method === 'mpesa') {
-      await client.query(
-        `UPDATE cash_sessions
-         SET mpesa_sales = mpesa_sales + $1, total_sales = total_sales + $1
-         WHERE branch_id = $2 AND status = 'open'`,
-        [amount, userBranchId]
-      );
-    } else if (payment_method === 'card') {
-      await client.query(
-        `UPDATE cash_sessions
-         SET card_sales = card_sales + $1, total_sales = total_sales + $1
-         WHERE branch_id = $2 AND status = 'open'`,
-        [amount, userBranchId]
-      );
+    // Update cash session totals (ONLY if a session exists)
+    // Check if there's an open cash session first
+    const openSession = await client.query(
+      `SELECT id FROM cash_sessions WHERE branch_id = $1 AND status = 'open'`,
+      [userBranchId]
+    );
+
+    if (openSession.rows.length > 0) {
+      if (payment_method === 'cash') {
+        await client.query(
+          `UPDATE cash_sessions
+           SET cash_sales = cash_sales + $1, total_sales = total_sales + $1,
+               expected_closing = opening_balance + cash_sales + $1 - expenses_paid
+           WHERE branch_id = $2 AND status = 'open'`,
+          [amount, userBranchId]
+        );
+      } else if (payment_method === 'mpesa') {
+        await client.query(
+          `UPDATE cash_sessions
+           SET mpesa_sales = mpesa_sales + $1, total_sales = total_sales + $1
+           WHERE branch_id = $2 AND status = 'open'`,
+          [amount, userBranchId]
+        );
+      } else if (payment_method === 'card') {
+        await client.query(
+          `UPDATE cash_sessions
+           SET card_sales = card_sales + $1, total_sales = total_sales + $1
+           WHERE branch_id = $2 AND status = 'open'`,
+          [amount, userBranchId]
+        );
+      }
+    } else {
+      console.log('No open cash session - payment recorded but session not updated');
     }
 
     return {
