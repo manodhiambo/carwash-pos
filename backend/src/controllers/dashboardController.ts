@@ -84,8 +84,8 @@ export const getMetrics = asyncHandler(async (req: AuthenticatedRequest, res: Re
        SELECT 1 FROM jobs j WHERE j.assigned_staff_id = u.id
        AND j.status IN ('washing', 'detailing')
      ))
-     ${branchId ? 'AND u.branch_id = $3' : ''}`,
-    paramsWithDate
+     ${branchId ? 'AND u.branch_id = $2' : ''}`,
+    branchId ? [startOfToday, branchId] : [startOfToday]
   );
 
   // Get low stock alerts count
@@ -99,18 +99,18 @@ export const getMetrics = asyncHandler(async (req: AuthenticatedRequest, res: Re
   );
 
   const metrics: DashboardMetrics = {
-    carsServicedToday: parseInt(carsServicedResult.rows[0].count, 10),
-    activeJobs: parseInt(activeJobsResult.rows[0].count, 10),
-    completedUnpaid: parseInt(unpaidJobsResult.rows[0].count, 10),
+    carsServicedToday: parseInt(carsServicedResult.rows[0]?.count || '0', 10),
+    activeJobs: parseInt(activeJobsResult.rows[0]?.count || '0', 10),
+    completedUnpaid: parseInt(unpaidJobsResult.rows[0]?.count || '0', 10),
     revenueToday: {
-      cash: parseFloat(revenueResult.rows[0].cash),
-      mpesa: parseFloat(revenueResult.rows[0].mpesa),
-      card: parseFloat(revenueResult.rows[0].card),
-      total: parseFloat(revenueResult.rows[0].total),
+      cash: parseFloat(revenueResult.rows[0]?.cash || '0'),
+      mpesa: parseFloat(revenueResult.rows[0]?.mpesa || '0'),
+      card: parseFloat(revenueResult.rows[0]?.card || '0'),
+      total: parseFloat(revenueResult.rows[0]?.total || '0'),
     },
-    averageServiceTime: Math.round(parseFloat(avgTimeResult.rows[0].avg_minutes) || 0),
-    staffOnDuty: parseInt(staffResult.rows[0].count, 10),
-    lowStockItems: parseInt(lowStockResult.rows[0].count, 10),
+    averageServiceTime: Math.round(parseFloat(avgTimeResult.rows[0]?.avg_minutes || '0') || 0),
+    staffOnDuty: parseInt(staffResult.rows[0]?.count || '0', 10),
+    lowStockItems: parseInt(lowStockResult.rows[0]?.count || '0', 10),
   };
 
   res.json({

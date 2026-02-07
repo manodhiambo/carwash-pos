@@ -115,8 +115,8 @@ export default function CheckInPage() {
   });
 
   const services = servicesData?.data || [];
-  const availableBays = baysData?.data.filter((b) => b.status === 'available') || [];
-  const staffList = staffData?.data.filter((u) => ['attendant', 'supervisor'].includes(u.role)) || [];
+  const availableBays = (baysData?.data || []).filter((b) => b.status === 'available');
+  const staffList = (staffData?.data || []).filter((u) => ['attendant', 'supervisor'].includes(u.role));
 
   // Search for existing vehicle
   const handleVehicleSearch = async () => {
@@ -152,6 +152,7 @@ export default function CheckInPage() {
 
   // Handle service selection
   const toggleService = (serviceId: string) => {
+    if (!serviceId) return;
     const newSelected = new Set(selectedServices);
     if (newSelected.has(serviceId)) {
       newSelected.delete(serviceId);
@@ -166,7 +167,7 @@ export default function CheckInPage() {
   const calculateTotal = () => {
     let total = 0;
     selectedServices.forEach((serviceId) => {
-      const service = services.find((s) => s.id === serviceId);
+      const service = services.find((s) => String(s.id) === serviceId);
       if (service) {
         // Use pricing array from backend (may also be named 'prices')
         const pricing = service.pricing || service.prices || [];
@@ -181,9 +182,9 @@ export default function CheckInPage() {
   const calculateDuration = () => {
     let duration = 0;
     selectedServices.forEach((serviceId) => {
-      const service = services.find((s) => s.id === serviceId);
+      const service = services.find((s) => String(s.id) === serviceId);
       if (service) {
-        duration += service.duration_minutes;
+        duration += service.duration_minutes || 0;
       }
     });
     return duration;
@@ -383,15 +384,15 @@ export default function CheckInPage() {
                   <>
                     <div className="grid gap-3 md:grid-cols-2">
                       {services
-                        .filter((s) => !s.is_addon && s.is_active)
+                        .filter((s) => s && s.id && !s.is_addon && s.is_active !== false)
                         .map((service) => {
                           const price = getServicePrice(service);
-                          const isSelected = selectedServices.has(service.id);
+                          const isSelected = selectedServices.has(String(service.id));
 
                           return (
                             <div
-                              key={service.id}
-                              onClick={() => toggleService(service.id)}
+                              key={String(service.id)}
+                              onClick={() => toggleService(String(service.id))}
                               className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
                                 isSelected
                                   ? 'border-primary bg-primary/5'
@@ -401,7 +402,7 @@ export default function CheckInPage() {
                               <div className="flex items-center gap-3">
                                 <Checkbox
                                   checked={isSelected}
-                                  onCheckedChange={() => toggleService(service.id)}
+                                  onCheckedChange={() => toggleService(String(service.id))}
                                 />
                                 <div>
                                   <div className="font-medium">{service.name}</div>
@@ -419,21 +420,21 @@ export default function CheckInPage() {
                     </div>
 
                     {/* Add-ons */}
-                    {services.some((s) => s.is_addon && s.is_active) && (
+                    {services.some((s) => s && s.id && s.is_addon && s.is_active !== false) && (
                       <>
                         <Separator className="my-4" />
                         <h4 className="font-medium mb-3">Add-ons</h4>
                         <div className="grid gap-3 md:grid-cols-3">
                           {services
-                            .filter((s) => s.is_addon && s.is_active)
+                            .filter((s) => s && s.id && s.is_addon && s.is_active !== false)
                             .map((service) => {
                               const price = getServicePrice(service);
-                              const isSelected = selectedServices.has(service.id);
+                              const isSelected = selectedServices.has(String(service.id));
 
                               return (
                                 <div
-                                  key={service.id}
-                                  onClick={() => toggleService(service.id)}
+                                  key={String(service.id)}
+                                  onClick={() => toggleService(String(service.id))}
                                   className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
                                     isSelected
                                       ? 'border-primary bg-primary/5'
@@ -554,7 +555,7 @@ export default function CheckInPage() {
                   ) : (
                     <div className="space-y-2">
                       {Array.from(selectedServices).map((serviceId) => {
-                        const service = services.find((s) => s.id === serviceId);
+                        const service = services.find((s) => String(s.id) === serviceId);
                         if (!service) return null;
                         const price = getServicePrice(service);
 
