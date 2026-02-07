@@ -269,6 +269,14 @@
     @apply text-sm font-medium text-destructive;
   }
 
+/* Fix for scrollable dialogs - makes all dialog content scrollable */
+[data-radix-dialog-content] {
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
   /* Loading states */
   .skeleton {
     @apply animate-pulse rounded-md bg-muted;
