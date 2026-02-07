@@ -199,7 +199,9 @@ export default function ServicesPage() {
       setValue('duration_minutes', service.duration_minutes);
       setValue('is_addon', service.is_addon);
       const prices: Record<string, number> = {};
-      service.prices.forEach((p) => {
+      // Handle both 'prices' and 'pricing' from backend
+      const servicePricing = service.prices || service.pricing || [];
+      servicePricing.forEach((p) => {
         prices[p.vehicle_type] = p.price;
       });
       setValue('prices', prices);
@@ -224,8 +226,9 @@ export default function ServicesPage() {
   };
 
   const getServicePrice = (service: Service, vehicleType: VehicleType) => {
-    const price = service.prices.find((p) => p.vehicle_type === vehicleType);
-    return price?.price || 0;
+    const pricing = service.prices || service.pricing || [];
+    const price = pricing.find((p) => p.vehicle_type === vehicleType);
+    return price?.price || service.base_price || 0;
   };
 
   const renderServicesTable = (servicesList: Service[]) => (

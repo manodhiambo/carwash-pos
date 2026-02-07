@@ -168,8 +168,10 @@ export default function CheckInPage() {
     selectedServices.forEach((serviceId) => {
       const service = services.find((s) => s.id === serviceId);
       if (service) {
-        const price = service.prices.find((p) => p.vehicle_type === vehicleType);
-        total += price?.price || 0;
+        // Use pricing array from backend (may also be named 'prices')
+        const pricing = service.pricing || service.prices || [];
+        const priceInfo = pricing.find((p: { vehicle_type: string; price: number }) => p.vehicle_type === vehicleType);
+        total += priceInfo?.price || service.base_price || 0;
       }
     });
     return total;
@@ -189,8 +191,10 @@ export default function CheckInPage() {
 
   // Get price for service based on vehicle type
   const getServicePrice = (service: Service) => {
-    const price = service.prices.find((p) => p.vehicle_type === vehicleType);
-    return price?.price || 0;
+    // Use pricing array from backend (may also be named 'prices')
+    const pricing = (service as Service & { pricing?: { vehicle_type: string; price: number }[] }).pricing || service.prices || [];
+    const priceInfo = pricing.find((p: { vehicle_type: string; price: number }) => p.vehicle_type === vehicleType);
+    return priceInfo?.price || service.base_price || 0;
   };
 
   // Submit form

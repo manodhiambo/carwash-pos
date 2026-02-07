@@ -4,21 +4,17 @@ import React from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from '@/lib/api';
-import { formatCurrency, formatTime, getRelativeTime } from '@/lib/utils';
-import { PageContainer, PageHeader, Section } from '@/components/layout';
+import { formatCurrency, getRelativeTime } from '@/lib/utils';
+import { PageContainer, PageHeader } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle, StatCard } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge, StatusBadge, PaymentMethodBadge } from '@/components/ui/badge';
+import { Badge, StatusBadge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Progress } from '@/components/ui/progress';
-import { Skeleton, StatsGridSkeleton, CardSkeleton } from '@/components/ui/skeleton';
+import { Skeleton, CardSkeleton } from '@/components/ui/skeleton';
 import {
   Car,
   DollarSign,
   Clock,
-  Users,
-  ArrowUpRight,
-  ArrowDownRight,
   AlertTriangle,
   Package,
   Wrench,
@@ -28,37 +24,95 @@ import {
   Activity,
   Droplets,
 } from 'lucide-react';
-import { Job, Bay, InventoryItem } from '@/types';
+
+// Dashboard metrics type matching backend response
+interface DashboardMetrics {
+  carsServicedToday: number;
+  activeJobs: number;
+  completedUnpaid: number;
+  revenueToday: {
+    cash: number;
+    mpesa: number;
+    card: number;
+    total: number;
+  };
+  averageServiceTime: number;
+  staffOnDuty: number;
+  lowStockItems: number;
+}
+
+// Queue job type
+interface QueueJob {
+  id: number;
+  job_no: string;
+  status: string;
+  created_at: string;
+  registration_no: string;
+  vehicle_type: string;
+  customer_name?: string;
+  bay_name?: string;
+  services: string[];
+  wait_time_minutes: number;
+  is_long_wait: boolean;
+}
+
+// Bay status type
+interface BayStatus {
+  id: number;
+  name: string;
+  bay_number: number;
+  bay_type: string;
+  status: string;
+  job_id?: number;
+  registration_no?: string;
+  elapsed_minutes?: number;
+}
 
 export default function DashboardPage() {
-  const { data: metrics, isLoading: metricsLoading } = useQuery({
+  const { data: metrics, isLoading: metricsLoading, error: metricsError } = useQuery({
     queryKey: ['dashboard-metrics'],
     queryFn: () => dashboardApi.getMetrics(),
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 30000,
+    retry: 2,
   });
 
-  const { data: alerts, isLoading: alertsLoading } = useQuery({
+  const { data: alerts } = useQuery({
     queryKey: ['dashboard-alerts'],
     queryFn: () => dashboardApi.getAlerts(),
     refetchInterval: 60000,
+    retry: 1,
   });
 
   const { data: queueData, isLoading: queueLoading } = useQuery({
     queryKey: ['dashboard-queue'],
     queryFn: () => dashboardApi.getQueue(),
     refetchInterval: 15000,
+    retry: 1,
   });
 
   const { data: bayStatus, isLoading: baysLoading } = useQuery({
     queryKey: ['dashboard-bays'],
     queryFn: () => dashboardApi.getBayStatus(),
     refetchInterval: 15000,
+    retry: 1,
   });
 
-  const dashboardData = metrics?.data;
-  const alertsList = alerts?.data?.alerts || [];
-  const queue = queueData?.data || [];
-  const bays = bayStatus?.data || [];
+  const dashboardData = metrics?.data as DashboardMetrics | undefined;
+  const alertsData = alerts?.data as { bayCongestion?: boolean; longWaitVehicles?: unknown[]; lowInventoryItems?: unknown[] } | undefined;
+  const queue = (queueData?.data || []) as unknown as QueueJob[];
+  const bays = (bayStatus?.data || []) as unknown as BayStatus[];
+
+  // Build alerts list from alerts data
+  const alertsList: { type: string; message: string; severity: string }[] = [];
+  if (alertsData?.bayCongestion) {
+    alertsList.push({ type: 'bay', message: 'All bays are occupied', severity: 'high' });
+  }
+  if (alertsData?.longWaitVehicles && (alertsData.longWaitVehicles as unknown[]).length > 0) {
+    alertsList.push({ type: 'wait', message: `${(alertsData.longWaitVehicles as unknown[]).length} vehicles waiting too long`, severity: 'medium' });
+  }
+  if (alertsData?.lowInventoryItems && (alertsData.lowInventoryItems as unknown[]).length > 0) {
+    alertsList.push({ type: 'inventory', message: `${(alertsData.lowInventoryItems as unknown[]).length} items low on stock`, severity: 'medium' });
+  }
 
   return (
     <PageContainer>
@@ -83,47 +137,36 @@ export default function DashboardPage() {
               <CardSkeleton key={i} />
             ))}
           </>
+        ) : metricsError ? (
+          <div className="col-span-4 text-center py-8 text-muted-foreground">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+            <p>Unable to load dashboard metrics</p>
+          </div>
         ) : (
           <>
             <StatCard
               title="Today's Revenue"
-              value={formatCurrency(dashboardData?.today.total_revenue || 0)}
+              value={formatCurrency(dashboardData?.revenueToday?.total || 0)}
               icon={<DollarSign className="h-6 w-6" />}
-              trend={
-                dashboardData?.comparison.revenue_change
-                  ? {
-                      value: dashboardData.comparison.revenue_change,
-                      isPositive: dashboardData.comparison.revenue_change > 0,
-                    }
-                  : undefined
-              }
-              description="vs yesterday"
+              description="Cash + M-Pesa + Card"
             />
             <StatCard
               title="Cars Serviced"
-              value={dashboardData?.today.completed_jobs || 0}
+              value={dashboardData?.carsServicedToday || 0}
               icon={<Car className="h-6 w-6" />}
-              trend={
-                dashboardData?.comparison.jobs_change
-                  ? {
-                      value: dashboardData.comparison.jobs_change,
-                      isPositive: dashboardData.comparison.jobs_change > 0,
-                    }
-                  : undefined
-              }
-              description="vs yesterday"
+              description="today"
             />
             <StatCard
-              title="In Queue"
-              value={dashboardData?.today.vehicles_in_queue || 0}
+              title="Active Jobs"
+              value={dashboardData?.activeJobs || 0}
               icon={<Clock className="h-6 w-6" />}
-              description="vehicles waiting"
+              description="in progress"
             />
             <StatCard
-              title="Active Bays"
-              value={`${dashboardData?.today.active_bays || 0} / ${bays.length}`}
+              title="Staff on Duty"
+              value={dashboardData?.staffOnDuty || 0}
               icon={<Wrench className="h-6 w-6" />}
-              description="bays occupied"
+              description="attendants"
             />
           </>
         )}
@@ -183,7 +226,7 @@ export default function DashboardPage() {
               ) : (
                 <ScrollArea className="h-[300px]">
                   <div className="space-y-3">
-                    {queue.slice(0, 5).map((job: Job) => (
+                    {queue.slice(0, 5).map((job) => (
                       <div
                         key={job.id}
                         className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
@@ -193,16 +236,16 @@ export default function DashboardPage() {
                             <Car className="h-5 w-5 text-primary" />
                           </div>
                           <div>
-                            <div className="font-medium">{job.vehicle?.registration_number}</div>
+                            <div className="font-medium">{job.registration_no}</div>
                             <div className="text-sm text-muted-foreground">
-                              {job.services.map((s) => s.service.name).join(', ')}
+                              {Array.isArray(job.services) ? job.services.filter(Boolean).join(', ') : '-'}
                             </div>
                           </div>
                         </div>
                         <div className="text-right">
                           <StatusBadge status={job.status} />
                           <div className="text-xs text-muted-foreground mt-1">
-                            {getRelativeTime(job.check_in_time)}
+                            {job.wait_time_minutes} min
                           </div>
                         </div>
                       </div>
@@ -233,9 +276,14 @@ export default function DashboardPage() {
                     <Skeleton key={i} className="h-24 w-full" />
                   ))}
                 </div>
+              ) : bays.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Wrench className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>No bays configured</p>
+                </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {bays.map((bay: Bay) => (
+                  {bays.map((bay) => (
                     <div
                       key={bay.id}
                       className={`relative p-4 rounded-lg border-2 ${
@@ -261,9 +309,9 @@ export default function DashboardPage() {
                       <div className="text-sm text-muted-foreground capitalize">
                         {bay.status}
                       </div>
-                      {bay.current_job && (
+                      {bay.registration_no && (
                         <div className="mt-2 text-xs font-medium text-primary">
-                          {bay.current_job.vehicle?.registration_number}
+                          {bay.registration_no}
                         </div>
                       )}
                     </div>
@@ -318,31 +366,23 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {metricsLoading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : !dashboardData?.low_stock_items || dashboardData.low_stock_items.length === 0 ? (
+                <Skeleton className="h-16 w-full" />
+              ) : !dashboardData?.lowStockItems || dashboardData.lowStockItems === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">
                   <Package className="h-10 w-10 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">All items well stocked</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {dashboardData.low_stock_items.slice(0, 5).map((item: InventoryItem) => (
-                    <div key={item.id} className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-sm">{item.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {item.current_stock} / {item.min_stock_level} {item.unit}
-                        </div>
-                      </div>
-                      <Badge variant="warning" className="text-xs">
-                        Low
-                      </Badge>
-                    </div>
-                  ))}
+                <div className="text-center py-4">
+                  <div className="text-3xl font-bold text-warning-600">
+                    {dashboardData.lowStockItems}
+                  </div>
+                  <p className="text-sm text-muted-foreground">items need restocking</p>
+                  <Link href="/inventory?low_stock=true">
+                    <Button variant="outline" size="sm" className="mt-3">
+                      View Items
+                    </Button>
+                  </Link>
                 </div>
               )}
             </CardContent>
@@ -353,7 +393,7 @@ export default function DashboardPage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5 text-destructive" />
-                Pending Payments
+                Unpaid Jobs
               </CardTitle>
               <Link href="/pos">
                 <Button variant="ghost" size="sm" className="gap-1">
@@ -363,36 +403,23 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {metricsLoading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : !dashboardData?.pending_payments || dashboardData.pending_payments.length === 0 ? (
+                <Skeleton className="h-16 w-full" />
+              ) : !dashboardData?.completedUnpaid || dashboardData.completedUnpaid === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">
                   <DollarSign className="h-10 w-10 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No pending payments</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {dashboardData.pending_payments.slice(0, 5).map((job: Job) => (
-                    <div key={job.id} className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-sm">
-                          {job.vehicle?.registration_number}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {job.job_number}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-sm">
-                          {formatCurrency(job.total_amount)}
-                        </div>
-                        <StatusBadge status={job.payment_status} />
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-center py-4">
+                  <div className="text-3xl font-bold text-destructive">
+                    {dashboardData.completedUnpaid}
+                  </div>
+                  <p className="text-sm text-muted-foreground">completed jobs awaiting payment</p>
+                  <Link href="/pos">
+                    <Button variant="outline" size="sm" className="mt-3">
+                      Process Payments
+                    </Button>
+                  </Link>
                 </div>
               )}
             </CardContent>

@@ -144,10 +144,12 @@ export interface Service {
   name: string;
   description?: string;
   category: ServiceCategory;
+  base_price?: number;
   duration_minutes: number;
   is_addon: boolean;
   is_active: boolean;
-  prices: ServicePrice[];
+  prices?: ServicePrice[];
+  pricing?: ServicePrice[]; // Backend returns 'pricing' instead of 'prices'
   created_at: string;
   updated_at: string;
 }
