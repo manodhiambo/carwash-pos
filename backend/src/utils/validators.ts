@@ -721,21 +721,6 @@ export const reportValidators = {
   ],
 };
 
-export default {
-  commonValidators,
-  authValidators,
-  vehicleValidators,
-  jobValidators,
-  serviceValidators,
-  paymentValidators,
-  customerValidators,
-  inventoryValidators,
-  bayValidators,
-  expenseValidators,
-  cashSessionValidators,
-  subscriptionValidators,
-  reportValidators,
-};
 
 // Supplier Validators
 export const supplierValidators = {
@@ -795,4 +780,21 @@ export const supplierValidators = {
       .optional()
       .isBoolean(),
   ],
+};
+
+export default {
+  commonValidators,
+  authValidators,
+  vehicleValidators,
+  jobValidators,
+  serviceValidators,
+  paymentValidators,
+  customerValidators,
+  inventoryValidators,
+  bayValidators,
+  expenseValidators,
+  cashSessionValidators,
+  subscriptionValidators,
+  supplierValidators,
+  reportValidators,
 };
