@@ -355,6 +355,17 @@ export const usersApi = {
       throw handleApiError(error as AxiosError<ApiError>);
     }
   },
+
+  resetPassword: async (id: string, newPassword: string): Promise<ApiResponse<void>> => {
+    try {
+      const response = await apiClient.post<ApiResponse<void>>(`/auth/users/${id}/reset-password`, {
+        newPassword,
+      });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
 };
 
 // ============================================

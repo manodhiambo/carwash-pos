@@ -148,6 +148,9 @@ const SelectSeparator = React.forwardRef<
 SelectSeparator.displayName = SelectPrimitive.Separator.displayName;
 
 // Simple Select component for common use cases
+// Uses a sentinel value to handle empty strings since Radix UI Select doesn't allow them
+const EMPTY_VALUE_SENTINEL = '__empty__';
+
 interface SimpleSelectProps {
   value: string;
   onValueChange: (value: string) => void;
@@ -167,16 +170,24 @@ function SimpleSelect({
   error,
   className,
 }: SimpleSelectProps) {
+  // Convert empty string to sentinel for internal use
+  const internalValue = value === '' ? EMPTY_VALUE_SENTINEL : value;
+
+  const handleValueChange = (newValue: string) => {
+    // Convert sentinel back to empty string for external use
+    onValueChange(newValue === EMPTY_VALUE_SENTINEL ? '' : newValue);
+  };
+
   return (
-    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+    <Select value={internalValue} onValueChange={handleValueChange} disabled={disabled}>
       <SelectTrigger className={className} error={error}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
           <SelectItem
-            key={option.value}
-            value={option.value}
+            key={option.value || EMPTY_VALUE_SENTINEL}
+            value={option.value === '' ? EMPTY_VALUE_SENTINEL : option.value}
             disabled={option.disabled}
           >
             {option.label}
