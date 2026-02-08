@@ -181,7 +181,7 @@ export const getExpensesReport = asyncHandler(async (req: AuthenticatedRequest, 
 
   if (!isSuperAdmin && branchId) {
     conditions.push(`e.branch_id = $${paramIndex++}`);
-    params.push(branchId);
+    params.push(String(branchId));
   }
 
   if (category) {
@@ -288,7 +288,7 @@ export const getStaffReport = asyncHandler(async (req: AuthenticatedRequest, res
 
   const params = [startDate, endDate];
   const branchWhere = (isSuperAdmin || !branchId) ? '' : 'AND u.branch_id = $3';
-  if (!isSuperAdmin && branchId) params.push(branchId);
+  if (!isSuperAdmin && branchId) params.push(String(branchId));
 
   const performanceResult = await db.query(
     `SELECT u.id, u.name, u.role, COUNT(DISTINCT j.id) as jobs_completed,
@@ -321,7 +321,7 @@ export const getCustomersReport = asyncHandler(async (req: AuthenticatedRequest,
 
   const params = [startDate, endDate];
   const branchWhere = (isSuperAdmin || !branchId) ? '' : 'AND j.branch_id = $3';
-  if (!isSuperAdmin && branchId) params.push(branchId);
+  if (!isSuperAdmin && branchId) params.push(String(branchId));
 
   const summaryResult = await db.query(
     `SELECT COUNT(DISTINCT c.id) as total_customers, COUNT(DISTINCT j.customer_id) as active_customers,
@@ -370,7 +370,7 @@ export const getFinancialReport = asyncHandler(async (req: AuthenticatedRequest,
 
   const params = [startDate, endDate];
   const branchWhere = (isSuperAdmin || !branchId) ? '' : 'AND branch_id = $3';
-  if (!isSuperAdmin && branchId) params.push(branchId);
+  if (!isSuperAdmin && branchId) params.push(String(branchId));
 
   const revenueResult = await db.query(`SELECT COALESCE(SUM(total_amount), 0) as total_revenue FROM jobs WHERE created_at >= $1 AND created_at <= $2 ${branchWhere}`, params);
   const expensesResult = await db.query(`SELECT COALESCE(SUM(amount), 0) as total_expenses FROM expenses WHERE expense_date >= $1 AND expense_date <= $2 ${branchWhere}`, params);
