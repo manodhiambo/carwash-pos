@@ -777,6 +777,15 @@ export const jobsApi = {
     }
   },
 
+  update: async (id: string, data: Partial<Job>): Promise<ApiResponse<Job>> => {
+    try {
+      const response = await apiClient.put<ApiResponse<Job>>(`/jobs/${id}`, data);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
   addService: async (id: string, serviceId: string, quantity?: number): Promise<ApiResponse<Job>> => {
     try {
       const response = await apiClient.post<ApiResponse<Job>>(`/jobs/${id}/services`, {
@@ -1785,6 +1794,53 @@ export const receiptsApi = {
   },
 };
 
+export const commissionsApi = {
+  calculate: async (jobId: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post<ApiResponse<any>>(`/commissions/calculate/${jobId}`);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  getStaffCommissions: async (staffId: string, params?: { status?: string; startDate?: string; endDate?: string }): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any[]>>(`/commissions/staff/${staffId}`, { params });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  getSummary: async (staffId: string, params?: { startDate?: string; endDate?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>(`/commissions/summary/${staffId}`, { params });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  getAllSummaries: async (params?: { startDate?: string; endDate?: string }): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any[]>>('/commissions/summaries', { params });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  markPaid: async (id: string, notes?: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put<ApiResponse<any>>(`/commissions/${id}/pay`, { notes });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+};
+
 // Export the API client for custom requests
 export { apiClient };
 
@@ -1811,4 +1867,5 @@ export const api = {
   promotions: promotionsApi,
   activityLogs: activityLogsApi,
   receipts: receiptsApi,
+  commissions: commissionsApi,
 };

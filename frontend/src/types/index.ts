@@ -625,6 +625,34 @@ export interface Promotion {
   updated_at: string;
 }
 
+
+// Commission Types
+export interface Commission {
+  id: string;
+  staff_id: string;
+  job_id: string;
+  job_service_id?: string;
+  amount: number;
+  commission_rate: number;
+  base_amount: number;
+  status: 'pending' | 'paid' | 'cancelled';
+  paid_at?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface CommissionSummary {
+  staff_id: string;
+  staff_name: string;
+  commission_rate: number;
+  total_jobs: number;
+  total_earnings: number;
+  pending_commission: number;
+  paid_commission: number;
+  period_start: string;
+  period_end: string;
+}
+
 // ============================================
 // API Response Types
 // ============================================
