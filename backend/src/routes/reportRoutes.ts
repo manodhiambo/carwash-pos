@@ -1,23 +1,23 @@
 import { Router } from 'express';
 import reportController from '../controllers/reportController';
 import { authenticate } from '../middleware/auth';
-import { canViewReports } from '../middleware/roleCheck';
-import { handleValidation } from '../middleware/validation';
-import { reportValidators } from '../utils/validators';
+import { isManager } from '../middleware/roleCheck';
 
 const router = Router();
 
+// All routes require authentication and manager+ access
 router.use(authenticate);
-router.use(canViewReports);
+router.use(isManager);
 
-// Reports
-router.get('/sales', reportValidators.dateRange, handleValidation, reportController.getSalesReport);
-router.get('/operational', reportValidators.dateRange, handleValidation, reportController.getOperationalReport);
-router.get('/customers', reportValidators.dateRange, handleValidation, reportController.getCustomerReport);
-router.get('/financial', reportValidators.dateRange, handleValidation, reportController.getFinancialReport);
-router.get('/inventory', reportValidators.dateRange, handleValidation, reportController.getInventoryReport);
+// Dashboard overview
+router.get('/dashboard', reportController.getDashboardReport);
 
-// Export
-router.get('/export/:type', reportController.exportReport);
+// Detailed reports
+router.get('/sales', reportController.getSalesReport);
+router.get('/expenses', reportController.getExpensesReport);
+router.get('/inventory', reportController.getInventoryReport);
+router.get('/staff', reportController.getStaffReport);
+router.get('/customers', reportController.getCustomersReport);
+router.get('/financial', reportController.getFinancialReport);
 
 export default router;
