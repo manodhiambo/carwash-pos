@@ -55,7 +55,7 @@ export const getDashboardReport = asyncHandler(async (req: AuthenticatedRequest,
       COUNT(CASE WHEN status IN ('completed', 'paid') THEN 1 END) as completed_jobs,
       COUNT(CASE WHEN status IN ('checked_in', 'in_queue', 'washing', 'detailing') THEN 1 END) as active_jobs
     FROM jobs 
-    WHERE created_at >= $1 AND created_at <= $2 ${branchCondition}`,
+    WHERE created_at >= $1::timestamp AND created_at <= $2::timestamp ${branchCondition}`,
     params
   );
 
@@ -67,7 +67,7 @@ export const getDashboardReport = asyncHandler(async (req: AuthenticatedRequest,
       COALESCE(SUM(p.amount), 0) as total_amount
     FROM payments p
     JOIN jobs j ON p.job_id = j.id
-    WHERE p.created_at >= $1 AND p.created_at <= $2
+    WHERE p.created_at >= $1::timestamp AND p.created_at <= $2::timestamp
     AND p.status = 'completed' ${branchCondition.replace('branch_id', 'j.branch_id')}
     GROUP BY p.payment_method`,
     params
@@ -83,7 +83,7 @@ export const getDashboardReport = asyncHandler(async (req: AuthenticatedRequest,
     FROM job_services js
     JOIN services s ON js.service_id = s.id
     JOIN jobs j ON js.job_id = j.id
-    WHERE j.created_at >= $1 AND j.created_at <= $2 ${branchCondition.replace('branch_id', 'j.branch_id')}
+    WHERE j.created_at >= $1::timestamp AND j.created_at <= $2::timestamp ${branchCondition.replace('branch_id', 'j.branch_id')}
     GROUP BY s.id, s.name, s.category
     ORDER BY revenue DESC
     LIMIT 10`,
@@ -129,7 +129,7 @@ export const getSalesReport = asyncHandler(async (req: AuthenticatedRequest, res
        COALESCE(AVG(j.total_amount), 0) as average_ticket,
        COUNT(DISTINCT j.customer_id) as unique_customers
      FROM jobs j
-     WHERE j.created_at >= $1 AND j.created_at <= $2 ${branchCondition}`,
+     WHERE j.created_at >= $1::timestamp AND j.created_at <= $2::timestamp ${branchCondition}`,
     params
   );
 
@@ -141,7 +141,7 @@ export const getSalesReport = asyncHandler(async (req: AuthenticatedRequest, res
      FROM payments p
      JOIN jobs j ON p.job_id = j.id
      WHERE p.status = 'completed'
-     AND p.created_at >= $1 AND p.created_at <= $2 ${branchCondition.replace('branch_id', 'j.branch_id')}
+     AND p.created_at >= $1::timestamp AND p.created_at <= $2::timestamp ${branchCondition.replace('branch_id', 'j.branch_id')}
      GROUP BY p.payment_method
      ORDER BY total DESC`,
     params
@@ -156,7 +156,7 @@ export const getSalesReport = asyncHandler(async (req: AuthenticatedRequest, res
      FROM job_services js
      JOIN services s ON js.service_id = s.id
      JOIN jobs j ON js.job_id = j.id
-     WHERE j.created_at >= $1 AND j.created_at <= $2 ${branchCondition.replace('branch_id', 'j.branch_id')}
+     WHERE j.created_at >= $1::timestamp AND j.created_at <= $2::timestamp ${branchCondition.replace('branch_id', 'j.branch_id')}
      GROUP BY s.id, s.name, s.category
      ORDER BY revenue DESC
      LIMIT 20`,
@@ -345,7 +345,7 @@ export const getStaffReport = asyncHandler(async (req: AuthenticatedRequest, res
        u.commission_rate
      FROM users u
      LEFT JOIN jobs j ON u.id = j.assigned_staff_id
-       AND j.created_at >= $1 AND j.created_at <= $2
+       AND j.created_at >= $1::timestamp AND j.created_at <= $2::timestamp
        AND j.status IN ('completed', 'paid')
      LEFT JOIN commissions c ON u.id = c.staff_id
        AND c.created_at >= $1 AND c.created_at <= $2
@@ -394,12 +394,12 @@ export const getCustomersReport = asyncHandler(async (req: AuthenticatedRequest,
          COUNT(*) as visit_count,
          SUM(total_amount) as total_spent
        FROM jobs
-       WHERE created_at >= $1 AND created_at <= $2
+       WHERE created_at >= $1::timestamp AND created_at <= $2::timestamp
        GROUP BY customer_id
      ) customer_stats ON c.id = customer_stats.customer_id
      LEFT JOIN jobs j ON c.id = j.customer_id
-       AND j.created_at >= $1 AND j.created_at <= $2
-     WHERE 1=1 ${branchCondition}`,
+       AND j.created_at >= $1::timestamp AND j.created_at <= $2::timestamp
+     WHERE 1=1 ${branchCondition.replace('AND j.branch_id', 'AND branch_id')}`,
     params
   );
 
@@ -412,7 +412,7 @@ export const getCustomersReport = asyncHandler(async (req: AuthenticatedRequest,
        c.loyalty_points
      FROM customers c
      JOIN jobs j ON c.id = j.customer_id
-     WHERE j.created_at >= $1 AND j.created_at <= $2 ${branchCondition}
+     WHERE j.created_at >= $1::timestamp AND j.created_at <= $2::timestamp ${branchCondition}
      GROUP BY c.id, c.name, c.phone, c.loyalty_points
      ORDER BY total_spent DESC
      LIMIT 20`,
@@ -450,7 +450,7 @@ export const getFinancialReport = asyncHandler(async (req: AuthenticatedRequest,
   const revenueResult = await db.query(
     `SELECT COALESCE(SUM(total_amount), 0) as total_revenue
      FROM jobs
-     WHERE created_at >= $1 AND created_at <= $2 ${branchCondition}`,
+     WHERE created_at >= $1::timestamp AND created_at <= $2::timestamp ${branchCondition}`,
     params
   );
 
@@ -465,7 +465,7 @@ export const getFinancialReport = asyncHandler(async (req: AuthenticatedRequest,
     `SELECT COALESCE(SUM(c.amount), 0) as total_commissions
      FROM commissions c
      JOIN users u ON c.staff_id = u.id
-     WHERE c.created_at >= $1 AND c.created_at <= $2 ${branchCondition.replace('branch_id', 'u.branch_id')}`,
+     WHERE c.created_at >= $1::timestamp AND c.created_at <= $2::timestamp ${branchCondition ? branchCondition.replace('branch_id', 'u.branch_id') : ''}`,
     params
   );
 
