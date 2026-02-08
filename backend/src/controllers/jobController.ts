@@ -257,6 +257,41 @@ const recordInventoryUsage = async (jobId: number, inventoryItems: Array<{ item_
 };
 
 
+
+/**
+ * Record inventory usage for a job
+ */
+const recordInventoryUsage = async (jobId: number, inventoryItems: Array<{ item_id: number; quantity: number }>, userId: number) => {
+  for (const item of inventoryItems) {
+    // Get current stock
+    const itemResult = await db.query(
+      'SELECT quantity FROM inventory_items WHERE id = $1',
+      [item.item_id]
+    );
+    
+    if (itemResult.rows.length === 0) continue;
+    
+    const currentStock = parseFloat(itemResult.rows[0].quantity);
+    const usageQty = parseFloat(item.quantity);
+    const newStock = currentStock - usageQty;
+    
+    // Update stock
+    await db.query(
+      'UPDATE inventory_items SET quantity = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [newStock, item.item_id]
+    );
+    
+    // Record transaction
+    await db.query(
+      `INSERT INTO inventory_transactions 
+       (item_id, transaction_type, quantity, previous_quantity, new_quantity, job_id, performed_by, notes)
+       VALUES ($1, 'stock_out', $2, $3, $4, $5, $6, $7)`,
+      [item.item_id, usageQty, currentStock, newStock, jobId, userId, 'Auto-deducted for job']
+    );
+  }
+};
+
+
 export const checkIn = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const {
     registration_no,
@@ -273,7 +308,7 @@ export const checkIn = asyncHandler(async (req: AuthenticatedRequest, res: Respo
     damage_notes,
     is_rewash,
     original_job_id,
-  , inventory_items} = req.body;
+  , inventory_items, inventory_items} = req.body;
 
   if (!req.user) {
     res.status(401).json({
