@@ -536,6 +536,40 @@ export const updateSupplier = asyncHandler(async (req: AuthenticatedRequest, res
   });
 });
 
+
+/**
+ * Get available inventory items for job usage
+ * GET /api/v1/inventory/available
+ */
+export const getAvailableItems = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const branchId = req.user?.branch_id || 1;
+
+  const result = await db.query(
+    `SELECT 
+      id, 
+      name, 
+      category, 
+      sku, 
+      unit, 
+      quantity, 
+      reorder_level,
+      CASE 
+        WHEN quantity <= 0 THEN 'out_of_stock'
+        WHEN quantity <= reorder_level THEN 'low_stock'
+        ELSE 'in_stock'
+      END as stock_status
+     FROM inventory_items 
+     WHERE branch_id = $1 AND is_active = true AND quantity > 0
+     ORDER BY name`,
+    [branchId]
+  );
+
+  res.json({
+    success: true,
+    data: result.rows,
+  });
+});
+
 export default {
   getItems,
   getItem,
