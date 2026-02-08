@@ -308,7 +308,8 @@ export const checkIn = asyncHandler(async (req: AuthenticatedRequest, res: Respo
     damage_notes,
     is_rewash,
     original_job_id,
-  , inventory_items, inventory_items} = req.body;
+  ,
+    inventory_items = req.body;
 
   if (!req.user) {
     res.status(401).json({
