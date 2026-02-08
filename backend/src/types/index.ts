@@ -15,6 +15,7 @@ export interface User {
   status: UserStatus;
   branch_id?: number;
   avatar?: string;
+  commission_rate?: number; // Percentage commission (e.g., 10 for 10%)
   last_login?: Date;
   created_at: Date;
   updated_at: Date;
@@ -22,6 +23,32 @@ export interface User {
 
 export interface AuthenticatedRequest extends Request {
   user?: User;
+}
+
+// Commission Types
+export interface Commission {
+  id: number;
+  staff_id: number;
+  job_id: number;
+  job_service_id?: number;
+  amount: number;
+  commission_rate: number;
+  base_amount: number;
+  status: 'pending' | 'paid' | 'cancelled';
+  paid_at?: Date;
+  notes?: string;
+  created_at: Date;
+}
+
+export interface CommissionSummary {
+  staff_id: number;
+  staff_name: string;
+  total_jobs: number;
+  total_earnings: number;
+  pending_commission: number;
+  paid_commission: number;
+  period_start: Date;
+  period_end: Date;
 }
 
 // Vehicle Types

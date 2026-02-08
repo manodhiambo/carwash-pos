@@ -11,6 +11,7 @@ import bayRoutes from './bayRoutes';
 import expenseRoutes from './expenseRoutes';
 import reportRoutes from './reportRoutes';
 import subscriptionRoutes from './subscriptionRoutes';
+import commissionRoutes from './commissionRoutes';
 import settingsRoutes from './settingsRoutes';
 import receiptService from '../services/receiptService';
 import db from '../config/database';
@@ -72,6 +73,7 @@ router.use('/bays', bayRoutes);
 router.use('/expenses', expenseRoutes);
 router.use('/reports', reportRoutes);
 router.use('/subscriptions', subscriptionRoutes);
+router.use('/commissions', commissionRoutes);
 router.use('/settings', settingsRoutes);
 
 // Receipt generation endpoint
