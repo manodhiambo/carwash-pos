@@ -156,7 +156,20 @@ export default function LoginPage() {
                 <p className="font-mono text-xs mt-1">admin@carwashpro.co.ke / admin123</p>
               </div>
             </CardContent>
-          </Card>
+          
+          {/* Business Location */}
+          <div className="text-center mt-6 p-4 bg-muted/50 rounded-lg">
+            <h3 className="font-semibold mb-2">Splash & Shine CarWash</h3>
+            <p className="text-sm text-muted-foreground">
+              Oginga Odinga Street, Behind Rubis Filling Station
+            </p>
+            <p className="text-sm text-muted-foreground">Siaya Town</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              📞 0724330080 | ✉️ lkwodi.lk@gmail.com
+            </p>
+          </div>
+
+        </Card>
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
             By signing in, you agree to our{' '}
