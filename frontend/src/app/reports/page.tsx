@@ -1,699 +1,607 @@
 'use client';
 
-import React from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { reportsApi } from '@/lib/api';
-import { formatCurrency, formatDate, cn } from '@/lib/utils';
-import { PageContainer, PageHeader, Section } from '@/components/layout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { SimpleSelect } from '@/components/ui/select';
-import { Badge, PaymentMethodBadge } from '@/components/ui/badge';
-import { Progress, CircularProgress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PageContainer, PageHeader } from '@/components/layout/PageHeader';
 import {
-  BarChart3,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  SimpleSelect,
+  Button,
+  Spinner,
+  Badge,
+} from '@/components/ui';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { formatCurrency } from '@/lib/utils';
+import {
   TrendingUp,
-  TrendingDown,
   DollarSign,
-  Car,
+  ShoppingCart,
   Users,
-  Clock,
   Download,
-  Calendar,
-  ArrowUpRight,
-  ArrowDownRight,
-  Percent,
-  CreditCard,
-  Smartphone,
-  Banknote,
-  Package,
 } from 'lucide-react';
-import { format, subDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
-
-const dateRanges = [
-  { value: 'today', label: 'Today' },
-  { value: 'yesterday', label: 'Yesterday' },
-  { value: 'week', label: 'This Week' },
-  { value: 'month', label: 'This Month' },
-  { value: 'custom', label: 'Custom Range' },
-];
 
 export default function ReportsPage() {
-  const [activeTab, setActiveTab] = React.useState('sales');
-  const [dateRange, setDateRange] = React.useState('month');
-  const [startDate, setStartDate] = React.useState(
-    format(startOfMonth(new Date()), 'yyyy-MM-dd')
-  );
-  const [endDate, setEndDate] = React.useState(format(new Date(), 'yyyy-MM-dd'));
-
-  // Update dates based on range selection
-  React.useEffect(() => {
-    const today = new Date();
-    switch (dateRange) {
-      case 'today':
-        setStartDate(format(today, 'yyyy-MM-dd'));
-        setEndDate(format(today, 'yyyy-MM-dd'));
-        break;
-      case 'yesterday':
-        const yesterday = subDays(today, 1);
-        setStartDate(format(yesterday, 'yyyy-MM-dd'));
-        setEndDate(format(yesterday, 'yyyy-MM-dd'));
-        break;
-      case 'week':
-        setStartDate(format(startOfWeek(today), 'yyyy-MM-dd'));
-        setEndDate(format(endOfWeek(today), 'yyyy-MM-dd'));
-        break;
-      case 'month':
-        setStartDate(format(startOfMonth(today), 'yyyy-MM-dd'));
-        setEndDate(format(endOfMonth(today), 'yyyy-MM-dd'));
-        break;
-    }
-  }, [dateRange]);
-
-  // Fetch sales report
-  const { data: salesReport, isLoading: salesLoading } = useQuery({
-    queryKey: ['sales-report', startDate, endDate],
-    queryFn: () =>
-      reportsApi.getSales({
-        start_date: startDate,
-        end_date: endDate,
-        group_by: 'day',
-      }),
-    enabled: activeTab === 'sales',
+  const [period, setPeriod] = useState('today');
+  const [activeTab, setActiveTab] = useState('sales');
+  const [dateRange] = useState({
+    from: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+    to: new Date().toISOString().split('T')[0],
   });
 
-  // Fetch operational report
-  const { data: operationalReport, isLoading: operationalLoading } = useQuery({
-    queryKey: ['operational-report', startDate, endDate],
-    queryFn: () =>
-      reportsApi.getOperational({
-        start_date: startDate,
-        end_date: endDate,
-      }),
-    enabled: activeTab === 'operational',
+  // Dashboard data
+  const { data: dashboardData, isLoading: dashboardLoading } = useQuery({
+    queryKey: ['reports', 'dashboard', period],
+    queryFn: () => reportsApi.getDashboard({ period }),
   });
 
-  // Fetch customer report
-  const { data: customerReport, isLoading: customerLoading } = useQuery({
-    queryKey: ['customer-report', startDate, endDate],
-    queryFn: () =>
-      reportsApi.getCustomerReport({
-        start_date: startDate,
-        end_date: endDate,
-        limit: 10,
-      }),
-    enabled: activeTab === 'customers',
+  // Sales report
+  const { data: salesData, isLoading: salesLoading } = useQuery({
+    queryKey: ['reports', 'sales', dateRange],
+    queryFn: () => reportsApi.getSales({
+      date_from: dateRange.from,
+      date_to: dateRange.to
+    }),
   });
 
-  // Fetch financial report
-  const { data: financialReport, isLoading: financialLoading } = useQuery({
-    queryKey: ['financial-report', startDate, endDate],
-    queryFn: () =>
-      reportsApi.getFinancialSummary({
-        start_date: startDate,
-        end_date: endDate,
-      }),
-    enabled: activeTab === 'financial',
+  // Expenses report
+  const { data: expensesData } = useQuery({
+    queryKey: ['reports', 'expenses', dateRange],
+    queryFn: () => reportsApi.getExpenses({
+      date_from: dateRange.from,
+      date_to: dateRange.to
+    }),
   });
 
-  const sales = salesReport?.data;
-  const operational = operationalReport?.data;
-  const customers = customerReport?.data;
-  const financial = financialReport?.data;
+  // Inventory report
+  const { data: inventoryData } = useQuery({
+    queryKey: ['reports', 'inventory', dateRange],
+    queryFn: () => reportsApi.getInventory({
+      date_from: dateRange.from,
+      date_to: dateRange.to
+    }),
+  });
 
-  const handleExport = async (type: string) => {
-    try {
-      const blob = await reportsApi.exportReport(type, {
-        start_date: startDate,
-        end_date: endDate,
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${type}-report-${startDate}-${endDate}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Export failed:', error);
-    }
-  };
+  // Staff report
+  const { data: staffData } = useQuery({
+    queryKey: ['reports', 'staff', dateRange],
+    queryFn: () => reportsApi.getStaff({
+      date_from: dateRange.from,
+      date_to: dateRange.to
+    }),
+  });
+
+  // Customers report
+  const { data: customersData } = useQuery({
+    queryKey: ['reports', 'customers', dateRange],
+    queryFn: () => reportsApi.getCustomers({
+      date_from: dateRange.from,
+      date_to: dateRange.to
+    }),
+  });
+
+  // Financial report
+  const { data: financialData } = useQuery({
+    queryKey: ['reports', 'financial', dateRange],
+    queryFn: () => reportsApi.getFinancial({
+      date_from: dateRange.from,
+      date_to: dateRange.to
+    }),
+  });
+
+  const dashboard = dashboardData?.data;
+  const sales = salesData?.data;
+  const expenses = expensesData?.data;
+  const inventory = inventoryData?.data;
+  const staff = staffData?.data;
+  const customers = customersData?.data;
+  const financial = financialData?.data;
+
+  const periodOptions = [
+    { value: 'today', label: 'Today' },
+    { value: 'yesterday', label: 'Yesterday' },
+    { value: 'week', label: 'Last 7 Days' },
+    { value: 'month', label: 'Last 30 Days' },
+    { value: 'year', label: 'Last Year' },
+  ];
 
   return (
     <PageContainer>
       <PageHeader
         title="Reports & Analytics"
-        description="View detailed reports and analytics for your car wash"
-        breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Reports' },
-        ]}
-        actions={
-          <Button variant="outline" onClick={() => handleExport(activeTab)} className="gap-2">
-            <Download className="h-4 w-4" />
-            Export Report
+        description="Comprehensive business intelligence and insights"
+      >
+        <div className="flex items-center gap-2">
+          <SimpleSelect
+            value={period}
+            onValueChange={setPeriod}
+            options={periodOptions}
+          />
+          <Button variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export
           </Button>
-        }
-      />
+        </div>
+      </PageHeader>
 
-      {/* Date Range Filter */}
-      <Card className="mb-6">
-        <CardContent className="py-4">
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="space-y-2">
-              <Label>Date Range</Label>
-              <SimpleSelect
-                value={dateRange}
-                onValueChange={setDateRange}
-                options={dateRanges}
-                className="w-[150px]"
-              />
-            </div>
-            {dateRange === 'custom' && (
-              <>
-                <div className="space-y-2">
-                  <Label>Start Date</Label>
-                  <Input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-[160px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>End Date</Label>
-                  <Input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-[160px]"
-                  />
-                </div>
-              </>
-            )}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              {formatDate(startDate, 'PP')} - {formatDate(endDate, 'PP')}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {dashboardLoading ? (
+        <div className="flex justify-center py-12">
+          <Spinner size="lg" />
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(dashboard?.summary?.total_revenue || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {dashboard?.summary?.total_jobs || 0} jobs completed
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Average Job Value</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(dashboard?.summary?.average_job_value || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {dashboard?.summary?.active_jobs || 0} active jobs
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Completed Jobs</CardTitle>
+              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {dashboard?.summary?.completed_jobs || 0}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {period === 'today' ? 'Today' : `Last ${period}`}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Payment Methods</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {dashboard?.payment_breakdown?.length || 0}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Active payment types
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-6">
+        <TabsList className="mb-4">
           <TabsTrigger value="sales">Sales</TabsTrigger>
-          <TabsTrigger value="operational">Operational</TabsTrigger>
+          <TabsTrigger value="expenses">Expenses</TabsTrigger>
+          <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          <TabsTrigger value="staff">Staff</TabsTrigger>
           <TabsTrigger value="customers">Customers</TabsTrigger>
           <TabsTrigger value="financial">Financial</TabsTrigger>
         </TabsList>
 
-        {/* Sales Report */}
         <TabsContent value="sales">
-          {salesLoading ? (
-            <div className="grid gap-4 md:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i}>
-                  <CardContent className="p-6">
-                    <Skeleton className="h-20" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <>
-              {/* Summary Cards */}
-              <div className="grid gap-4 md:grid-cols-4 mb-6">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Revenue</p>
-                        <p className="text-2xl font-bold">
-                          {formatCurrency(sales?.total_revenue || 0)}
-                        </p>
-                      </div>
-                      <DollarSign className="h-8 w-8 text-success-500" />
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Sales Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {salesLoading ? (
+                  <Spinner />
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Jobs</p>
+                      <p className="text-2xl font-bold">{sales?.summary?.total_jobs || 0}</p>
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Jobs</p>
-                        <p className="text-2xl font-bold">{sales?.total_jobs || 0}</p>
-                      </div>
-                      <Car className="h-8 w-8 text-primary" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Revenue</p>
+                      <p className="text-2xl font-bold">{formatCurrency(sales?.summary?.total_revenue || 0)}</p>
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Average Job Value</p>
-                        <p className="text-2xl font-bold">
-                          {formatCurrency(sales?.average_job_value || 0)}
-                        </p>
-                      </div>
-                      <TrendingUp className="h-8 w-8 text-info-500" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Average Ticket</p>
+                      <p className="text-2xl font-bold">{formatCurrency(sales?.summary?.average_ticket || 0)}</p>
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Daily Average</p>
-                        <p className="text-2xl font-bold">
-                          {formatCurrency(
-                            (sales?.total_revenue || 0) / Math.max(1, sales?.by_day?.length || 1)
-                          )}
-                        </p>
-                      </div>
-                      <BarChart3 className="h-8 w-8 text-warning-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid gap-6 lg:grid-cols-2">
-                {/* Revenue by Payment Method */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Revenue by Payment Method</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {sales?.by_payment_method?.map((method) => {
-                        const percentage = sales.total_revenue
-                          ? (method.amount / sales.total_revenue) * 100
-                          : 0;
-                        const Icon =
-                          method.method === 'cash'
-                            ? Banknote
-                            : method.method === 'mpesa'
-                            ? Smartphone
-                            : CreditCard;
-
-                        return (
-                          <div key={method.method} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium capitalize">
-                                  {method.method === 'mpesa' ? 'M-Pesa' : method.method}
-                                </span>
-                              </div>
-                              <div className="text-right">
-                                <div className="font-semibold">
-                                  {formatCurrency(method.amount)}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {method.count} transactions
-                                </div>
-                              </div>
-                            </div>
-                            <Progress value={percentage} className="h-2" />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Top Services */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Top Services</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {sales?.by_service?.slice(0, 5).map((service, index) => (
-                        <div
-                          key={service.service_id}
-                          className="flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium">
-                              {index + 1}
-                            </div>
-                            <div>
-                              <div className="font-medium">{service.service_name}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {service.count} times
-                              </div>
-                            </div>
-                          </div>
-                          <div className="font-semibold">{formatCurrency(service.revenue)}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </>
-          )}
-        </TabsContent>
-
-        {/* Operational Report */}
-        <TabsContent value="operational">
-          {operationalLoading ? (
-            <div className="grid gap-4 md:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i}>
-                  <CardContent className="p-6">
-                    <Skeleton className="h-20" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <>
-              {/* Summary Cards */}
-              <div className="grid gap-4 md:grid-cols-4 mb-6">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Jobs</p>
-                        <p className="text-2xl font-bold">{operational?.total_jobs || 0}</p>
-                      </div>
-                      <Car className="h-8 w-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Completed</p>
-                        <p className="text-2xl font-bold text-success-600">
-                          {operational?.completed_jobs || 0}
-                        </p>
-                      </div>
-                      <TrendingUp className="h-8 w-8 text-success-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Avg Wait Time</p>
-                        <p className="text-2xl font-bold">
-                          {operational?.average_wait_time || 0} min
-                        </p>
-                      </div>
-                      <Clock className="h-8 w-8 text-warning-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Avg Service Time</p>
-                        <p className="text-2xl font-bold">
-                          {operational?.average_service_time || 0} min
-                        </p>
-                      </div>
-                      <Clock className="h-8 w-8 text-info-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid gap-6 lg:grid-cols-2">
-                {/* Bay Utilization */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Bay Utilization</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {operational?.bay_utilization?.map((bay) => (
-                        <div key={bay.bay_id} className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{bay.bay_name}</span>
-                            <div className="text-right">
-                              <span className="font-semibold">
-                                {bay.utilization_rate.toFixed(1)}%
-                              </span>
-                              <div className="text-xs text-muted-foreground">
-                                {bay.jobs_completed} jobs
-                              </div>
-                            </div>
-                          </div>
-                          <Progress value={bay.utilization_rate} className="h-2" />
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Staff Performance */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Staff Performance</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {operational?.staff_performance?.map((staff) => (
-                        <div key={staff.staff_id} className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium">{staff.staff_name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              Avg: {staff.average_time} min per job
-                            </div>
-                          </div>
-                          <Badge variant="secondary">{staff.jobs_completed} jobs</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </>
-          )}
-        </TabsContent>
-
-        {/* Customer Report */}
-        <TabsContent value="customers">
-          {customerLoading ? (
-            <div className="grid gap-4 md:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i}>
-                  <CardContent className="p-6">
-                    <Skeleton className="h-20" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <>
-              {/* Summary Cards */}
-              <div className="grid gap-4 md:grid-cols-4 mb-6">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Customers</p>
-                        <p className="text-2xl font-bold">{customers?.total_customers || 0}</p>
-                      </div>
-                      <Users className="h-8 w-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">New Customers</p>
-                        <p className="text-2xl font-bold text-success-600">
-                          {customers?.new_customers || 0}
-                        </p>
-                      </div>
-                      <ArrowUpRight className="h-8 w-8 text-success-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Repeat Customers</p>
-                        <p className="text-2xl font-bold">{customers?.repeat_customers || 0}</p>
-                      </div>
-                      <Users className="h-8 w-8 text-info-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Retention Rate</p>
-                        <p className="text-2xl font-bold">
-                          {customers?.total_customers
-                            ? (
-                                ((customers.repeat_customers || 0) / customers.total_customers) *
-                                100
-                              ).toFixed(1)
-                            : 0}
-                          %
-                        </p>
-                      </div>
-                      <Percent className="h-8 w-8 text-warning-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Top Customers */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Customers</CardTitle>
-                  <CardDescription>Customers with highest spending this period</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {customers?.top_customers?.map((item, index) => (
-                      <div
-                        key={item.customer.id}
-                        className="flex items-center justify-between p-3 rounded-lg border"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold">
-                            {index + 1}
-                          </div>
-                          <div>
-                            <div className="font-medium">{item.customer.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {item.total_visits} visits
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold">{formatCurrency(item.total_spent)}</div>
-                        </div>
-                      </div>
-                    ))}
                   </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue by Payment Method</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Payment Method</TableHead>
+                      <TableHead>Transactions</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sales?.payments?.length > 0 ? (
+                      sales.payments.map((payment: any) => (
+                        <TableRow key={payment.payment_method}>
+                          <TableCell className="font-medium capitalize">
+                            {payment.payment_method}
+                          </TableCell>
+                          <TableCell>{payment.count}</TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(payment.total)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground">
+                          No payment data available
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Services</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Count</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sales?.services?.length > 0 ? (
+                      sales.services.slice(0, 10).map((service: any) => (
+                        <TableRow key={service.name}>
+                          <TableCell className="font-medium">{service.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize">
+                              {service.category}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{service.count}</TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(service.revenue)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          No service data available
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
-        {/* Financial Report */}
-        <TabsContent value="financial">
-          {financialLoading ? (
-            <div className="grid gap-4 md:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i}>
-                  <CardContent className="p-6">
-                    <Skeleton className="h-20" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <>
-              {/* Summary Cards */}
+        <TabsContent value="expenses">
+          <Card>
+            <CardHeader>
+              <CardTitle>Expenses Overview</CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="grid gap-4 md:grid-cols-3 mb-6">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Revenue</p>
-                        <p className="text-2xl font-bold text-success-600">
-                          {formatCurrency(financial?.total_revenue || 0)}
-                        </p>
-                      </div>
-                      <ArrowUpRight className="h-8 w-8 text-success-500" />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Expenses</p>
-                        <p className="text-2xl font-bold text-destructive">
-                          {formatCurrency(financial?.total_expenses || 0)}
-                        </p>
-                      </div>
-                      <ArrowDownRight className="h-8 w-8 text-destructive" />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Net Profit</p>
-                        <p
-                          className={cn(
-                            'text-2xl font-bold',
-                            (financial?.net_profit || 0) >= 0
-                              ? 'text-success-600'
-                              : 'text-destructive'
-                          )}
-                        >
-                          {formatCurrency(financial?.net_profit || 0)}
-                        </p>
-                      </div>
-                      <DollarSign className="h-8 w-8 text-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Expenses</p>
+                  <p className="text-2xl font-bold">{formatCurrency(expenses?.summary?.total_amount || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Transaction Count</p>
+                  <p className="text-2xl font-bold">{expenses?.summary?.total_expenses || 0}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Average Expense</p>
+                  <p className="text-2xl font-bold">{formatCurrency(expenses?.summary?.average_expense || 0)}</p>
+                </div>
               </div>
 
-              <div className="grid gap-6 lg:grid-cols-2">
-                {/* Revenue Breakdown */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Revenue by Payment Method</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {financial?.revenue_by_method &&
-                        Object.entries(financial.revenue_by_method).map(([method, amount]) => (
-                          <div key={method} className="flex items-center justify-between">
-                            <PaymentMethodBadge method={method} />
-                            <span className="font-semibold">{formatCurrency(amount)}</span>
-                          </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Count</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {expenses?.by_category?.length > 0 ? (
+                    expenses.by_category.map((category: any) => (
+                      <TableRow key={category.category}>
+                        <TableCell className="font-medium capitalize">{category.category}</TableCell>
+                        <TableCell>{category.count}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(category.total)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center text-muted-foreground">
+                        No expenses recorded for this period
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-                {/* Expenses Breakdown */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Expenses by Category</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {financial?.expenses_by_category &&
-                        Object.entries(financial.expenses_by_category).map(([category, amount]) => (
-                          <div key={category} className="flex items-center justify-between">
-                            <Badge variant="secondary" className="capitalize">
-                              {category.replace('_', ' ')}
-                            </Badge>
-                            <span className="font-semibold">{formatCurrency(amount)}</span>
-                          </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
+        <TabsContent value="inventory">
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Low Stock Alerts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Current Stock</TableHead>
+                      <TableHead>Reorder Level</TableHead>
+                      <TableHead>Unit</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {inventory?.low_stock_alerts?.length > 0 ? (
+                      inventory.low_stock_alerts.map((item: any) => (
+                        <TableRow key={item.name}>
+                          <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="destructive">{item.quantity}</Badge>
+                          </TableCell>
+                          <TableCell>{item.reorder_level}</TableCell>
+                          <TableCell>{item.unit}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          All items are adequately stocked
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Consumed Items</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Consumed</TableHead>
+                      <TableHead>Restocked</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {inventory?.consumption?.length > 0 ? (
+                      inventory.consumption.map((item: any) => (
+                        <TableRow key={item.name}>
+                          <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell className="capitalize">{item.category}</TableCell>
+                          <TableCell>{item.consumed} {item.unit}</TableCell>
+                          <TableCell>{item.restocked} {item.unit}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          No consumption data for this period
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="staff">
+          <Card>
+            <CardHeader>
+              <CardTitle>Staff Performance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Staff Member</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Jobs Completed</TableHead>
+                    <TableHead>Revenue Generated</TableHead>
+                    <TableHead>Commission Earned</TableHead>
+                    <TableHead>Commission Rate</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {staff?.length > 0 ? (
+                    staff.map((member: any) => (
+                      <TableRow key={member.id}>
+                        <TableCell className="font-medium">{member.name}</TableCell>
+                        <TableCell className="capitalize">{member.role}</TableCell>
+                        <TableCell>{member.jobs_completed}</TableCell>
+                        <TableCell>{formatCurrency(member.total_revenue)}</TableCell>
+                        <TableCell>{formatCurrency(member.total_commission)}</TableCell>
+                        <TableCell>{member.commission_rate}%</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        No staff performance data available
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="customers">
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Customer Overview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Customers</p>
+                    <p className="text-2xl font-bold">{customers?.summary?.total_customers || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Active Customers</p>
+                    <p className="text-2xl font-bold">{customers?.summary?.active_customers || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Avg Visits</p>
+                    <p className="text-2xl font-bold">{parseFloat(customers?.summary?.avg_visits_per_customer || 0).toFixed(1)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Avg Spent</p>
+                    <p className="text-2xl font-bold">{formatCurrency(customers?.summary?.avg_spent_per_customer || 0)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Customers</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Visits</TableHead>
+                      <TableHead>Total Spent</TableHead>
+                      <TableHead>Loyalty Points</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customers?.top_customers?.length > 0 ? (
+                      customers.top_customers.map((customer: any) => (
+                        <TableRow key={customer.phone}>
+                          <TableCell className="font-medium">{customer.name}</TableCell>
+                          <TableCell>{customer.phone}</TableCell>
+                          <TableCell>{customer.visit_count}</TableCell>
+                          <TableCell>{formatCurrency(customer.total_spent)}</TableCell>
+                          <TableCell>{customer.loyalty_points} pts</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          No customer data available
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="financial">
+          <Card>
+            <CardHeader>
+              <CardTitle>Financial Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Total Revenue</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {formatCurrency(financial?.revenue || 0)}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Total Expenses</p>
+                  <p className="text-3xl font-bold text-red-600">
+                    {formatCurrency(financial?.expenses || 0)}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Staff Commissions</p>
+                  <p className="text-3xl font-bold text-orange-600">
+                    {formatCurrency(financial?.commissions || 0)}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Net Profit</p>
+                  <p className={`text-3xl font-bold ${(financial?.net_profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(financial?.net_profit || 0)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {financial?.profit_margin || 0}% margin
+                  </p>
+                </div>
               </div>
-            </>
-          )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </PageContainer>

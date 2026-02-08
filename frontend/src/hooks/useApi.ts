@@ -454,7 +454,7 @@ export function useSalesReport(params: { start_date: string; end_date: string; g
 export function useCustomerReport(params: { start_date: string; end_date: string }) {
   return useQuery({
     queryKey: ['reports', 'customers', params],
-    queryFn: () => api.reports.getCustomerReport(params as any),
+    queryFn: () => api.reports.getCustomers(params as any),
   });
 }
 

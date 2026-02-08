@@ -1496,101 +1496,6 @@ export const cashSessionsApi = {
 };
 
 // ============================================
-// Reports API
-// ============================================
-
-export const reportsApi = {
-  getSales: async (params: {
-    start_date: string;
-    end_date: string;
-    group_by?: 'day' | 'week' | 'month';
-  }): Promise<ApiResponse<SalesReport>> => {
-    try {
-      const response = await apiClient.get<ApiResponse<SalesReport>>('/reports/sales', { params });
-      return response.data;
-    } catch (error) {
-      throw handleApiError(error as AxiosError<ApiError>);
-    }
-  },
-
-  getOperational: async (params: {
-    start_date: string;
-    end_date: string;
-  }): Promise<ApiResponse<OperationalReport>> => {
-    try {
-      const response = await apiClient.get<ApiResponse<OperationalReport>>('/reports/operational', { params });
-      return response.data;
-    } catch (error) {
-      throw handleApiError(error as AxiosError<ApiError>);
-    }
-  },
-
-  getCustomerReport: async (params: {
-    start_date: string;
-    end_date: string;
-    limit?: number;
-  }): Promise<ApiResponse<{
-    total_customers: number;
-    new_customers: number;
-    repeat_customers: number;
-    top_customers: Array<{
-      customer: Customer;
-      total_visits: number;
-      total_spent: number;
-    }>;
-  }>> => {
-    try {
-      const response = await apiClient.get('/reports/customers', { params });
-      return response.data;
-    } catch (error) {
-      throw handleApiError(error as AxiosError<ApiError>);
-    }
-  },
-
-  getFinancialSummary: async (params: {
-    start_date: string;
-    end_date: string;
-  }): Promise<ApiResponse<{
-    total_revenue: number;
-    total_expenses: number;
-    net_profit: number;
-    revenue_by_method: Record<string, number>;
-    expenses_by_category: Record<string, number>;
-  }>> => {
-    try {
-      const response = await apiClient.get('/reports/financial', { params });
-      return response.data;
-    } catch (error) {
-      throw handleApiError(error as AxiosError<ApiError>);
-    }
-  },
-
-  getInventoryReport: async (): Promise<ApiResponse<{
-    total_items: number;
-    low_stock_items: number;
-    total_value: number;
-    items_by_category: Record<string, number>;
-  }>> => {
-    try {
-      const response = await apiClient.get('/reports/inventory');
-      return response.data;
-    } catch (error) {
-      throw handleApiError(error as AxiosError<ApiError>);
-    }
-  },
-
-  exportReport: async (type: string, params: Record<string, string>): Promise<Blob> => {
-    try {
-      const response = await apiClient.get(`/reports/export/${type}`, {
-        params,
-        responseType: 'blob',
-      });
-      return response.data;
-    } catch (error) {
-      throw handleApiError(error as AxiosError<ApiError>);
-    }
-  },
-};
 
 // ============================================
 // Settings API
@@ -1794,6 +1699,72 @@ export const receiptsApi = {
   },
 };
 
+
+export const reportsApi = {
+  getDashboard: async (params?: { period?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>('/reports/dashboard', { params });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  getSales: async (params?: { date_from?: string; date_to?: string; branch_id?: string; group_by?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>('/reports/sales', { params });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  getExpenses: async (params?: { date_from?: string; date_to?: string; branch_id?: string; category?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>('/reports/expenses', { params });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  getInventory: async (params?: { date_from?: string; date_to?: string; branch_id?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>('/reports/inventory', { params });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  getStaff: async (params?: { date_from?: string; date_to?: string; branch_id?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>('/reports/staff', { params });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  getCustomers: async (params?: { date_from?: string; date_to?: string; branch_id?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>('/reports/customers', { params });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  getFinancial: async (params?: { date_from?: string; date_to?: string; branch_id?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>('/reports/financial', { params });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+};
+
 export const commissionsApi = {
   calculate: async (jobId: string): Promise<ApiResponse<any>> => {
     try {
@@ -1861,11 +1832,11 @@ export const api = {
   subscriptions: subscriptionsApi,
   expenses: expensesApi,
   cashSessions: cashSessionsApi,
-  reports: reportsApi,
   settings: settingsApi,
   branches: branchesApi,
   promotions: promotionsApi,
   activityLogs: activityLogsApi,
   receipts: receiptsApi,
   commissions: commissionsApi,
+  reports: reportsApi,
 };
