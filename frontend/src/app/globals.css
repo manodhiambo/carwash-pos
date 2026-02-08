@@ -523,14 +523,39 @@
   }
 }
 
+
+
 /* ===== DIALOG SCROLLING FIX ===== */
-/* Makes all dialogs scrollable on mobile and desktop */
-[data-radix-dialog-content] {
+/* Make dialog content scrollable on mobile and desktop */
+[data-state="open"][role="dialog"] {
   max-height: 90vh !important;
   overflow-y: auto !important;
 }
 
-/* Ensure dialog content wrapper doesn't add extra padding */
-[data-radix-dialog-content] > div {
-  max-height: inherit;
+/* Better mobile dialog sizing */
+@media (max-width: 640px) {
+  [data-state="open"][role="dialog"] {
+    max-height: 85vh !important;
+    width: 95vw !important;
+    max-width: 95vw !important;
+  }
+}
+
+/* Smooth scrolling for dialog content */
+[data-state="open"][role="dialog"] {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground)) transparent;
+}
+
+[data-state="open"][role="dialog"]::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-state="open"][role="dialog"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-state="open"][role="dialog"]::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground));
+  border-radius: 4px;
 }
