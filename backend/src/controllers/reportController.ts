@@ -72,8 +72,9 @@ export const getDashboardReport = asyncHandler(async (req: AuthenticatedRequest,
       COALESCE(SUM(p.amount), 0) as total_amount
     FROM payments p
     JOIN jobs j ON p.job_id = j.id
-    WHERE p.${dateCondition.replace('created_at', 'p.created_at').replace('branch_id', 'j.branch_id')}
+    WHERE p.created_at >= $1 AND p.created_at <= $2
     AND p.status = 'completed'
+    ${branchId ? 'AND j.branch_id = $3' : ''}
     GROUP BY p.payment_method`,
     params
   );
