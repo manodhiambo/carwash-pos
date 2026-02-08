@@ -4,14 +4,14 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryApi, suppliersApi } from '@/lib/api';
 import { formatCurrency, cn } from '@/lib/utils';
-import { PageContainer, PageHeader, Section } from '@/components/layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageContainer, PageHeader } from '@/components/layout';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input, SearchInput, Textarea } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SimpleSelect } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Progress, LabeledProgress } from '@/components/ui/progress';
+import { Progress } from '@/components/ui/progress';
 import {
   Table,
   TableBody,
@@ -37,7 +37,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Package,
   Plus,
@@ -59,18 +58,20 @@ import { z } from 'zod';
 import { InventoryItem, InventoryCategory, Supplier } from '@/types';
 
 const inventoryCategories: { value: InventoryCategory; label: string }[] = [
-  { value: 'chemicals', label: 'Chemicals' },
-  { value: 'consumables', label: 'Consumables' },
+  { value: 'detergent', label: 'Detergent' },
+  { value: 'wax', label: 'Wax' },
+  { value: 'polish', label: 'Polish' },
+  { value: 'towel', label: 'Towel' },
+  { value: 'sponge', label: 'Sponge' },
+  { value: 'chemical', label: 'Chemical' },
   { value: 'equipment', label: 'Equipment' },
-  { value: 'spare_parts', label: 'Spare Parts' },
-  { value: 'cleaning_supplies', label: 'Cleaning Supplies' },
   { value: 'other', label: 'Other' },
 ];
 
 const inventorySchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   sku: z.string().min(1, 'SKU is required'),
-  category: z.enum(['chemicals', 'consumables', 'equipment', 'spare_parts', 'cleaning_supplies', 'other']),
+  category: z.enum(['detergent', 'wax', 'polish', 'towel', 'sponge', 'chemical', 'equipment', 'other']),
   description: z.string().optional(),
   unit: z.string().min(1, 'Unit is required'),
   min_stock_level: z.number().min(0),
@@ -97,7 +98,6 @@ export default function InventoryPage() {
   const [search, setSearch] = React.useState('');
   const [categoryFilter, setCategoryFilter] = React.useState('');
   const [lowStockOnly, setLowStockOnly] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState('items');
   const [formDialog, setFormDialog] = React.useState<{
     open: boolean;
     item?: InventoryItem;
@@ -122,7 +122,7 @@ export default function InventoryPage() {
   } = useForm<InventoryFormData>({
     resolver: zodResolver(inventorySchema),
     defaultValues: {
-      category: 'consumables',
+      category: 'detergent',
       unit: 'pcs',
       min_stock_level: 10,
       max_stock_level: 100,
@@ -438,7 +438,7 @@ export default function InventoryPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="capitalize">
-                          {item.category.replace('_', ' ')}
+                          {item.category}
                         </Badge>
                       </TableCell>
                       <TableCell>

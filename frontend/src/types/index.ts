@@ -367,7 +367,7 @@ export interface InventoryItem {
   updated_at: string;
 }
 
-export type InventoryCategory = 'chemicals' | 'consumables' | 'equipment' | 'spare_parts' | 'cleaning_supplies' | 'other';
+export type InventoryCategory = 'detergent' | 'wax' | 'polish' | 'towel' | 'sponge' | 'chemical' | 'equipment' | 'other';
 
 export interface Supplier {
   id: string;
