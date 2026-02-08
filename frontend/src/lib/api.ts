@@ -1437,6 +1437,15 @@ export const expensesApi = {
       throw handleApiError(error as AxiosError<ApiError>);
     }
   },
+  getSummary: async (params?: { date_from?: string; date_to?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>('/expenses/summary', { params });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
 };
 
 // ============================================
