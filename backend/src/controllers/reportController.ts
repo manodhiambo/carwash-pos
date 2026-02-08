@@ -8,14 +8,9 @@ import { asyncHandler } from '../middleware/errorHandler';
  * GET /api/v1/reports/dashboard
  */
 export const getDashboardReport = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const { period = 'today', branch_id } = req.query;
-  const branchId = branch_id || req.user?.branch_id;
+  const { period = 'today' } = req.query;
+  const branchId = req.user?.branch_id;
 
-  let dateCondition = '';
-  let params: any[] = [];
-  let paramIndex = 1;
-
-  // Calculate date range based on period
   const now = new Date();
   let startDate: Date;
   let endDate = now;
@@ -43,11 +38,11 @@ export const getDashboardReport = asyncHandler(async (req: AuthenticatedRequest,
       startDate = new Date(now.setHours(0, 0, 0, 0));
   }
 
-  dateCondition = `created_at >= $${paramIndex++} AND created_at <= $${paramIndex++}`;
-  params.push(startDate, endDate);
-
-  if (branchId) {
-    dateCondition += ` AND branch_id = $${paramIndex++}`;
+  const params: any[] = [startDate, endDate];
+  let branchCondition = '';
+  
+  if (branchId && req.user?.role !== 'super_admin') {
+    branchCondition = 'AND branch_id = $3';
     params.push(branchId);
   }
 
@@ -57,10 +52,10 @@ export const getDashboardReport = asyncHandler(async (req: AuthenticatedRequest,
       COUNT(*) as total_jobs,
       COALESCE(SUM(total_amount), 0) as total_revenue,
       COALESCE(AVG(total_amount), 0) as average_job_value,
-      COUNT(CASE WHEN status = 'completed' OR status = 'paid' THEN 1 END) as completed_jobs,
+      COUNT(CASE WHEN status IN ('completed', 'paid') THEN 1 END) as completed_jobs,
       COUNT(CASE WHEN status IN ('checked_in', 'in_queue', 'washing', 'detailing') THEN 1 END) as active_jobs
     FROM jobs 
-    WHERE ${dateCondition}`,
+    WHERE created_at >= $1 AND created_at <= $2 ${branchCondition}`,
     params
   );
 
@@ -73,8 +68,7 @@ export const getDashboardReport = asyncHandler(async (req: AuthenticatedRequest,
     FROM payments p
     JOIN jobs j ON p.job_id = j.id
     WHERE p.created_at >= $1 AND p.created_at <= $2
-    AND p.status = 'completed'
-    ${branchId ? 'AND j.branch_id = $3' : ''}
+    AND p.status = 'completed' ${branchCondition.replace('branch_id', 'j.branch_id')}
     GROUP BY p.payment_method`,
     params
   );
@@ -89,7 +83,7 @@ export const getDashboardReport = asyncHandler(async (req: AuthenticatedRequest,
     FROM job_services js
     JOIN services s ON js.service_id = s.id
     JOIN jobs j ON js.job_id = j.id
-    WHERE j.${dateCondition}
+    WHERE j.created_at >= $1 AND j.created_at <= $2 ${branchCondition.replace('branch_id', 'j.branch_id')}
     GROUP BY s.id, s.name, s.category
     ORDER BY revenue DESC
     LIMIT 10`,
@@ -109,20 +103,24 @@ export const getDashboardReport = asyncHandler(async (req: AuthenticatedRequest,
 });
 
 /**
- * Get sales report with time series data
+ * Get sales report
  * GET /api/v1/reports/sales
  */
 export const getSalesReport = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const { date_from, date_to, branch_id, group_by = 'day' } = req.query;
+  const { date_from, date_to, branch_id } = req.query;
   const branchId = branch_id || req.user?.branch_id;
 
   const startDate = date_from ? new Date(date_from as string) : new Date(new Date().setDate(new Date().getDate() - 30));
   const endDate = date_to ? new Date(date_to as string) : new Date();
 
-  const branchCondition = branchId ? 'AND j.branch_id = $3' : '';
-  const params = branchId ? [startDate, endDate, branchId] : [startDate, endDate];
+  const params: any[] = [startDate, endDate];
+  let branchCondition = '';
+  
+  if (branchId && req.user?.role !== 'super_admin') {
+    branchCondition = 'AND j.branch_id = $3';
+    params.push(branchId);
+  }
 
-  // Summary
   const summaryResult = await db.query(
     `SELECT
        COUNT(DISTINCT j.id) as total_jobs,
@@ -131,12 +129,10 @@ export const getSalesReport = asyncHandler(async (req: AuthenticatedRequest, res
        COALESCE(AVG(j.total_amount), 0) as average_ticket,
        COUNT(DISTINCT j.customer_id) as unique_customers
      FROM jobs j
-     WHERE j.created_at >= $1 AND j.created_at <= $2
-     ${branchCondition}`,
+     WHERE j.created_at >= $1 AND j.created_at <= $2 ${branchCondition}`,
     params
   );
 
-  // Payment breakdown
   const paymentResult = await db.query(
     `SELECT
        p.payment_method,
@@ -145,14 +141,12 @@ export const getSalesReport = asyncHandler(async (req: AuthenticatedRequest, res
      FROM payments p
      JOIN jobs j ON p.job_id = j.id
      WHERE p.status = 'completed'
-     AND p.created_at >= $1 AND p.created_at <= $2
-     ${branchCondition}
+     AND p.created_at >= $1 AND p.created_at <= $2 ${branchCondition.replace('branch_id', 'j.branch_id')}
      GROUP BY p.payment_method
      ORDER BY total DESC`,
     params
   );
 
-  // Service breakdown
   const serviceResult = await db.query(
     `SELECT
        s.name,
@@ -162,55 +156,10 @@ export const getSalesReport = asyncHandler(async (req: AuthenticatedRequest, res
      FROM job_services js
      JOIN services s ON js.service_id = s.id
      JOIN jobs j ON js.job_id = j.id
-     WHERE j.created_at >= $1 AND j.created_at <= $2
-     ${branchCondition}
+     WHERE j.created_at >= $1 AND j.created_at <= $2 ${branchCondition.replace('branch_id', 'j.branch_id')}
      GROUP BY s.id, s.name, s.category
      ORDER BY revenue DESC
      LIMIT 20`,
-    params
-  );
-
-  // Time series data
-  let dateFormat: string;
-  switch (group_by) {
-    case 'week':
-      dateFormat = 'IYYY-IW';
-      break;
-    case 'month':
-      dateFormat = 'YYYY-MM';
-      break;
-    case 'year':
-      dateFormat = 'YYYY';
-      break;
-    default:
-      dateFormat = 'YYYY-MM-DD';
-  }
-
-  const trendResult = await db.query(
-    `SELECT
-       TO_CHAR(j.created_at, '${dateFormat}') as period,
-       COUNT(*) as jobs,
-       COALESCE(SUM(j.total_amount), 0) as revenue
-     FROM jobs j
-     WHERE j.created_at >= $1 AND j.created_at <= $2
-     ${branchCondition}
-     GROUP BY period
-     ORDER BY period ASC`,
-    params
-  );
-
-  // Vehicle type breakdown
-  const vehicleResult = await db.query(
-    `SELECT
-       v.vehicle_type,
-       COUNT(j.id) as job_count,
-       COALESCE(SUM(j.total_amount), 0) as revenue
-     FROM jobs j
-     JOIN vehicles v ON j.vehicle_id = v.id
-     WHERE j.created_at >= $1 AND j.created_at <= $2
-     ${branchCondition}
-     GROUP BY v.vehicle_type
-     ORDER BY revenue DESC`,
     params
   );
 
@@ -220,8 +169,6 @@ export const getSalesReport = asyncHandler(async (req: AuthenticatedRequest, res
       summary: summaryResult.rows[0],
       payments: paymentResult.rows,
       services: serviceResult.rows,
-      trends: trendResult.rows,
-      vehicles: vehicleResult.rows,
     },
   });
 });
@@ -237,11 +184,11 @@ export const getExpensesReport = asyncHandler(async (req: AuthenticatedRequest, 
   const startDate = date_from ? new Date(date_from as string) : new Date(new Date().setDate(new Date().getDate() - 30));
   const endDate = date_to ? new Date(date_to as string) : new Date();
 
-  let conditions = ['e.expense_date >= $1', 'e.expense_date <= $2'];
+  const conditions: string[] = ['e.expense_date >= $1', 'e.expense_date <= $2'];
   const params: any[] = [startDate, endDate];
   let paramIndex = 3;
 
-  if (branchId) {
+  if (branchId && req.user?.role !== 'super_admin') {
     conditions.push(`e.branch_id = $${paramIndex++}`);
     params.push(branchId);
   }
@@ -253,7 +200,6 @@ export const getExpensesReport = asyncHandler(async (req: AuthenticatedRequest, 
 
   const whereClause = conditions.join(' AND ');
 
-  // Summary
   const summaryResult = await db.query(
     `SELECT
        COUNT(*) as total_expenses,
@@ -264,7 +210,6 @@ export const getExpensesReport = asyncHandler(async (req: AuthenticatedRequest, 
     params
   );
 
-  // By category
   const categoryResult = await db.query(
     `SELECT
        category,
@@ -277,30 +222,17 @@ export const getExpensesReport = asyncHandler(async (req: AuthenticatedRequest, 
     params
   );
 
-  // Trend
-  const trendResult = await db.query(
-    `SELECT
-       TO_CHAR(expense_date, 'YYYY-MM-DD') as date,
-       COALESCE(SUM(amount), 0) as total
-     FROM expenses e
-     WHERE ${whereClause}
-     GROUP BY date
-     ORDER BY date ASC`,
-    params
-  );
-
   res.json({
     success: true,
     data: {
       summary: summaryResult.rows[0],
       by_category: categoryResult.rows,
-      trends: trendResult.rows,
     },
   });
 });
 
 /**
- * Get inventory consumption report
+ * Get inventory report
  * GET /api/v1/reports/inventory
  */
 export const getInventoryReport = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -310,10 +242,14 @@ export const getInventoryReport = asyncHandler(async (req: AuthenticatedRequest,
   const startDate = date_from ? new Date(date_from as string) : new Date(new Date().setDate(new Date().getDate() - 30));
   const endDate = date_to ? new Date(date_to as string) : new Date();
 
-  const branchCondition = branchId ? 'AND i.branch_id = $3' : '';
-  const params = branchId ? [startDate, endDate, branchId] : [startDate, endDate];
+  const params: any[] = [startDate, endDate];
+  let branchCondition = '';
+  
+  if (branchId && req.user?.role !== 'super_admin') {
+    branchCondition = 'AND i.branch_id = $3';
+    params.push(branchId);
+  }
 
-  // Current stock levels
   const stockResult = await db.query(
     `SELECT
        i.id,
@@ -326,9 +262,9 @@ export const getInventoryReport = asyncHandler(async (req: AuthenticatedRequest,
          WHEN i.quantity <= 0 THEN 'out_of_stock'
          WHEN i.quantity <= i.reorder_level THEN 'low_stock'
          ELSE 'in_stock'
-       END as status
+       END as stock_status
      FROM inventory_items i
-     WHERE i.is_active = true ${branchCondition.replace('i.branch_id', 'i.branch_id')}
+     WHERE i.is_active = true ${branchCondition}
      ORDER BY 
        CASE
          WHEN i.quantity <= 0 THEN 1
@@ -339,7 +275,8 @@ export const getInventoryReport = asyncHandler(async (req: AuthenticatedRequest,
     branchId ? [branchId] : []
   );
 
-  // Consumption over period
+  const consumptionParams = branchId ? [startDate, endDate, branchId] : [startDate, endDate];
+  
   const consumptionResult = await db.query(
     `SELECT
        i.name,
@@ -356,20 +293,14 @@ export const getInventoryReport = asyncHandler(async (req: AuthenticatedRequest,
      HAVING COUNT(t.id) > 0
      ORDER BY consumed DESC
      LIMIT 20`,
-    params
+    consumptionParams
   );
 
-  // Low stock alerts
   const alertsResult = await db.query(
-    `SELECT
-       i.name,
-       i.quantity,
-       i.reorder_level,
-       i.unit
+    `SELECT i.name, i.quantity, i.reorder_level, i.unit
      FROM inventory_items i
      WHERE i.is_active = true
-     AND i.quantity <= i.reorder_level
-     ${branchCondition}
+     AND i.quantity <= i.reorder_level ${branchCondition}
      ORDER BY (i.quantity / NULLIF(i.reorder_level, 0)) ASC`,
     branchId ? [branchId] : []
   );
@@ -395,10 +326,14 @@ export const getStaffReport = asyncHandler(async (req: AuthenticatedRequest, res
   const startDate = date_from ? new Date(date_from as string) : new Date(new Date().setDate(new Date().getDate() - 30));
   const endDate = date_to ? new Date(date_to as string) : new Date();
 
-  const branchCondition = branchId ? 'AND u.branch_id = $3' : '';
-  const params = branchId ? [startDate, endDate, branchId] : [startDate, endDate];
+  const params: any[] = [startDate, endDate];
+  let branchCondition = '';
+  
+  if (branchId && req.user?.role !== 'super_admin') {
+    branchCondition = 'AND u.branch_id = $3';
+    params.push(branchId);
+  }
 
-  // Staff performance
   const performanceResult = await db.query(
     `SELECT
        u.id,
@@ -415,8 +350,7 @@ export const getStaffReport = asyncHandler(async (req: AuthenticatedRequest, res
      LEFT JOIN commissions c ON u.id = c.staff_id
        AND c.created_at >= $1 AND c.created_at <= $2
      WHERE u.status = 'active'
-     AND u.role IN ('attendant', 'cashier', 'manager')
-     ${branchCondition}
+     AND u.role IN ('attendant', 'cashier', 'manager') ${branchCondition}
      GROUP BY u.id, u.name, u.role, u.commission_rate
      ORDER BY total_revenue DESC`,
     params
@@ -429,7 +363,7 @@ export const getStaffReport = asyncHandler(async (req: AuthenticatedRequest, res
 });
 
 /**
- * Get customer analytics
+ * Get customers report
  * GET /api/v1/reports/customers
  */
 export const getCustomersReport = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -439,10 +373,14 @@ export const getCustomersReport = asyncHandler(async (req: AuthenticatedRequest,
   const startDate = date_from ? new Date(date_from as string) : new Date(new Date().setDate(new Date().getDate() - 30));
   const endDate = date_to ? new Date(date_to as string) : new Date();
 
-  const branchCondition = branchId ? 'AND j.branch_id = $3' : '';
-  const params = branchId ? [startDate, endDate, branchId] : [startDate, endDate];
+  const params: any[] = [startDate, endDate];
+  let branchCondition = '';
+  
+  if (branchId && req.user?.role !== 'super_admin') {
+    branchCondition = 'AND j.branch_id = $3';
+    params.push(branchId);
+  }
 
-  // Customer summary
   const summaryResult = await db.query(
     `SELECT
        COUNT(DISTINCT c.id) as total_customers,
@@ -461,11 +399,10 @@ export const getCustomersReport = asyncHandler(async (req: AuthenticatedRequest,
      ) customer_stats ON c.id = customer_stats.customer_id
      LEFT JOIN jobs j ON c.id = j.customer_id
        AND j.created_at >= $1 AND j.created_at <= $2
-     ${branchCondition}`,
+     WHERE 1=1 ${branchCondition}`,
     params
   );
 
-  // Top customers
   const topCustomersResult = await db.query(
     `SELECT
        c.name,
@@ -475,24 +412,10 @@ export const getCustomersReport = asyncHandler(async (req: AuthenticatedRequest,
        c.loyalty_points
      FROM customers c
      JOIN jobs j ON c.id = j.customer_id
-     WHERE j.created_at >= $1 AND j.created_at <= $2
-     ${branchCondition}
+     WHERE j.created_at >= $1 AND j.created_at <= $2 ${branchCondition}
      GROUP BY c.id, c.name, c.phone, c.loyalty_points
      ORDER BY total_spent DESC
      LIMIT 20`,
-    params
-  );
-
-  // New vs returning
-  const segmentResult = await db.query(
-    `SELECT
-       CASE WHEN c.total_visits = 1 THEN 'new' ELSE 'returning' END as segment,
-       COUNT(*) as count
-     FROM customers c
-     JOIN jobs j ON c.id = j.customer_id
-     WHERE j.created_at >= $1 AND j.created_at <= $2
-     ${branchCondition}
-     GROUP BY segment`,
     params
   );
 
@@ -501,7 +424,6 @@ export const getCustomersReport = asyncHandler(async (req: AuthenticatedRequest,
     data: {
       summary: summaryResult.rows[0],
       top_customers: topCustomersResult.rows,
-      segmentation: segmentResult.rows,
     },
   });
 });
@@ -517,33 +439,33 @@ export const getFinancialReport = asyncHandler(async (req: AuthenticatedRequest,
   const startDate = date_from ? new Date(date_from as string) : new Date(new Date().setMonth(new Date().getMonth() - 1));
   const endDate = date_to ? new Date(date_to as string) : new Date();
 
-  const branchCondition = branchId ? 'AND branch_id = $3' : '';
-  const params = branchId ? [startDate, endDate, branchId] : [startDate, endDate];
+  const params: any[] = [startDate, endDate];
+  let branchCondition = '';
+  
+  if (branchId && req.user?.role !== 'super_admin') {
+    branchCondition = 'AND branch_id = $3';
+    params.push(branchId);
+  }
 
-  // Revenue
   const revenueResult = await db.query(
     `SELECT COALESCE(SUM(total_amount), 0) as total_revenue
      FROM jobs
-     WHERE created_at >= $1 AND created_at <= $2
-     ${branchCondition}`,
+     WHERE created_at >= $1 AND created_at <= $2 ${branchCondition}`,
     params
   );
 
-  // Expenses
   const expensesResult = await db.query(
     `SELECT COALESCE(SUM(amount), 0) as total_expenses
      FROM expenses
-     WHERE expense_date >= $1 AND expense_date <= $2
-     ${branchCondition}`,
+     WHERE expense_date >= $1 AND expense_date <= $2 ${branchCondition}`,
     params
   );
 
-  // Commissions
   const commissionsResult = await db.query(
-    `SELECT COALESCE(SUM(amount), 0) as total_commissions
-     FROM commissions
-     WHERE created_at >= $1 AND created_at <= $2
-     ${branchCondition.replace('branch_id', 'staff_id IN (SELECT id FROM users WHERE branch_id')}`,
+    `SELECT COALESCE(SUM(c.amount), 0) as total_commissions
+     FROM commissions c
+     JOIN users u ON c.staff_id = u.id
+     WHERE c.created_at >= $1 AND c.created_at <= $2 ${branchCondition.replace('branch_id', 'u.branch_id')}`,
     params
   );
 
