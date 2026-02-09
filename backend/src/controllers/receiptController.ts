@@ -119,7 +119,6 @@ export const generateReceipt = asyncHandler(async (req: AuthenticatedRequest, re
   };
 
   if (format === 'text') {
-    // Generate plain text receipt for WhatsApp
     const textReceipt = generateTextReceipt(receipt);
     res.json({ success: true, data: textReceipt, format: 'text' });
   } else {
@@ -265,6 +264,18 @@ export const getWhatsAppLink = asyncHandler(async (req: AuthenticatedRequest, re
     [jobId]
   );
 
+  // Get payments
+  const paymentsResult = await db.query(
+    `SELECT 
+      payment_method,
+      amount,
+      reference
+    FROM payments
+    WHERE job_id = $1 AND status = 'completed'
+    ORDER BY created_at`,
+    [jobId]
+  );
+
   // Get business settings
   const settingsResult = await db.query(
     `SELECT key, value FROM system_settings 
@@ -297,11 +308,18 @@ export const getWhatsAppLink = asyncHandler(async (req: AuthenticatedRequest, re
       name: job.customer_name || 'Walk-in',
       phone: job.customer_phone || '',
     },
+    vehicle: {
+      registration: job.vehicle_reg || 'N/A',
+      make: job.vehicle_make || '',
+      model: job.vehicle_model || '',
+    },
+    cashier: job.cashier_name || 'System',
     services: servicesResult.rows,
     subtotal: parseFloat(job.subtotal_amount || 0),
     discount: parseFloat(job.discount_amount || 0),
     tax: parseFloat(job.tax_amount || 0),
     total: parseFloat(job.total_amount || 0),
+    payments: paymentsResult.rows,
     currency: settings.currency || 'KES',
     tax_rate: parseFloat(settings.tax_rate || '0'),
   };
@@ -309,7 +327,7 @@ export const getWhatsAppLink = asyncHandler(async (req: AuthenticatedRequest, re
   // Generate text receipt
   const textReceipt = generateTextReceipt(receipt);
   
-  // Clean phone number (remove spaces, dashes, etc.)
+  // Clean phone number
   const cleanPhone = phone.replace(/\D/g, '');
   
   // URL encode the text
@@ -321,27 +339,6 @@ export const getWhatsAppLink = asyncHandler(async (req: AuthenticatedRequest, re
       phone: cleanPhone,
       whatsapp_url: `https://wa.me/${cleanPhone}?text=${encodedText}`,
       receipt_text: textReceipt,
-    },
-  });
-});
-    return;
-  }
-
-  const phone = result.rows[0].phone;
-  
-  if (!phone) {
-    res.status(400).json({ success: false, error: 'No phone number available for this customer' });
-    return;
-  }
-
-  // Generate receipt text
-  const receiptResponse = await generateReceipt(req, res);
-  
-  res.json({
-    success: true,
-    data: {
-      phone,
-      whatsapp_url: `https://wa.me/${phone.replace(/\D/g, '')}?text=`,
     },
   });
 });
