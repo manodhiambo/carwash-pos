@@ -703,12 +703,62 @@ export const assignStaff = asyncHandler(async (req: AuthenticatedRequest, res: R
   const { staff_id } = req.body;
 
   // Check job exists
-  const job = await db.query(`SELECT id FROM jobs WHERE id = $1`, [id]);
+  const job = await db.query(`SELECT id, status, total_amount FROM jobs WHERE id = $1`, [id]);
   if (job.rows.length === 0) {
     res.status(404).json({
       success: false,
       error: ERROR_MESSAGES.JOB_NOT_FOUND,
     });
+    return;
+  }
+
+  // Check staff exists and get commission rate
+  const staff = await db.query(
+    `SELECT id, name, commission_rate FROM users WHERE id = $1 AND role IN ('attendant', 'manager')`,
+    [staff_id]
+  );
+
+  if (staff.rows.length === 0) {
+    res.status(404).json({
+      success: false,
+      error: 'Staff member not found',
+    });
+    return;
+  }
+
+  // Assign staff to job
+  const result = await db.query(
+    `UPDATE jobs SET assigned_staff_id = $1, updated_at = CURRENT_TIMESTAMP 
+     WHERE id = $2 RETURNING *`,
+    [staff_id, id]
+  );
+
+  // If job is already completed/paid, calculate commission immediately
+  const jobData = job.rows[0];
+  if ((jobData.status === 'completed' || jobData.status === 'paid') && staff.rows[0].commission_rate > 0) {
+    const commissionAmount = (parseFloat(jobData.total_amount) * staff.rows[0].commission_rate) / 100;
+    
+    // Check if commission already exists
+    const existingCommission = await db.query(
+      `SELECT id FROM commissions WHERE job_id = $1`,
+      [id]
+    );
+
+    if (existingCommission.rows.length === 0) {
+      await db.query(
+        `INSERT INTO commissions (job_id, staff_id, amount, status, created_at)
+         VALUES ($1, $2, $3, 'pending', CURRENT_TIMESTAMP)`,
+        [id, staff_id, commissionAmount]
+      );
+    }
+  }
+
+  res.json({
+    success: true,
+    message: SUCCESS_MESSAGES.UPDATED,
+    data: result.rows[0],
+  });
+});
     return;
   }
 
