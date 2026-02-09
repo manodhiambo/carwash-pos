@@ -25,11 +25,30 @@ export const createPayment = asyncHandler(async (req: AuthenticatedRequest, res:
 
   const job = jobResult.rows[0];
 
+  // ✅ FIXED: include received_by (NOT NULL) and created_by
   const paymentResult = await db.query(
-    `INSERT INTO payments (job_id, amount, payment_method, reference_no, notes, status, created_by, created_at)
-     VALUES ($1, $2, $3, $4, $5, 'completed', $6, CURRENT_TIMESTAMP)
+    `INSERT INTO payments (
+       job_id,
+       amount,
+       payment_method,
+       reference_no,
+       notes,
+       status,
+       received_by,
+       created_by,
+       created_at
+     )
+     VALUES ($1, $2, $3, $4, $5, 'completed', $6, $7, CURRENT_TIMESTAMP)
      RETURNING *`,
-    [job_id, amount, payment_method, reference_no, notes, userId]
+    [
+      job_id,
+      amount,
+      payment_method,
+      reference_no,
+      notes,
+      userId, // received_by
+      userId  // created_by
+    ]
   );
 
   const currentPaid = parseFloat(job.amount_paid || '0');
@@ -106,7 +125,7 @@ export const getPayments = asyncHandler(async (req: AuthenticatedRequest, res: R
   );
 
   const result = await db.query(
-    `SELECT p.*, j.job_no, u.name as created_by_name
+    `SELECT p.*, j.job_no, u.name AS created_by_name
      FROM payments p
      LEFT JOIN jobs j ON p.job_id = j.id
      LEFT JOIN users u ON p.created_by = u.id
@@ -135,7 +154,7 @@ export const getPaymentById = asyncHandler(async (req: AuthenticatedRequest, res
   const { id } = req.params;
 
   const result = await db.query(
-    `SELECT p.*, j.job_no, u.name as created_by_name
+    `SELECT p.*, j.job_no, u.name AS created_by_name
      FROM payments p
      LEFT JOIN jobs j ON p.job_id = j.id
      LEFT JOIN users u ON p.created_by = u.id
@@ -158,7 +177,7 @@ export const getJobPayments = asyncHandler(async (req: AuthenticatedRequest, res
   const { jobId } = req.params;
 
   const result = await db.query(
-    `SELECT p.*, u.name as created_by_name
+    `SELECT p.*, u.name AS created_by_name
      FROM payments p
      LEFT JOIN users u ON p.created_by = u.id
      WHERE p.job_id = $1
@@ -174,7 +193,7 @@ export const getJobPayments = asyncHandler(async (req: AuthenticatedRequest, res
  */
 export const getTodayTotals = asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
   const result = await db.query(`
-    SELECT 
+    SELECT
       COALESCE(SUM(amount), 0) AS total_amount,
       COUNT(*) AS total_payments
     FROM payments
