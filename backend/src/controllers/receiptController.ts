@@ -225,16 +225,105 @@ function formatCurrency(amount: number, currency: string): string {
 export const getWhatsAppLink = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { jobId } = req.params;
   
-  // Get customer phone
-  const result = await db.query(
-    `SELECT c.phone FROM jobs j
-     LEFT JOIN customers c ON j.customer_id = c.id
-     WHERE j.id = $1`,
+  // Get job details
+  const jobResult = await db.query(
+    `SELECT 
+      j.*,
+      c.name as customer_name,
+      c.phone as customer_phone
+    FROM jobs j
+    LEFT JOIN customers c ON j.customer_id = c.id
+    WHERE j.id = $1`,
     [jobId]
   );
 
-  if (result.rows.length === 0) {
+  if (jobResult.rows.length === 0) {
     res.status(404).json({ success: false, error: 'Job not found' });
+    return;
+  }
+
+  const job = jobResult.rows[0];
+  const phone = job.customer_phone;
+  
+  if (!phone) {
+    res.status(400).json({ success: false, error: 'No phone number available for this customer' });
+    return;
+  }
+
+  // Get services
+  const servicesResult = await db.query(
+    `SELECT 
+      s.name,
+      js.quantity,
+      js.price,
+      js.discount,
+      js.total
+    FROM job_services js
+    JOIN services s ON js.service_id = s.id
+    WHERE js.job_id = $1
+    ORDER BY js.id`,
+    [jobId]
+  );
+
+  // Get business settings
+  const settingsResult = await db.query(
+    `SELECT key, value FROM system_settings 
+     WHERE key IN ('business_name', 'business_tagline', 'business_phone', 
+                   'business_email', 'business_address', 'tax_rate', 'currency')`
+  );
+
+  const settings: Record<string, string> = {};
+  settingsResult.rows.forEach(row => {
+    settings[row.key] = row.value;
+  });
+
+  const receipt = {
+    receipt_no: `RCP-${String(job.id).padStart(6, '0')}`,
+    date: new Date(job.created_at).toLocaleString('en-KE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }),
+    business: {
+      name: settings.business_name || 'Car Wash',
+      tagline: settings.business_tagline || '',
+      phone: settings.business_phone || '',
+      address: settings.business_address || '',
+    },
+    customer: {
+      name: job.customer_name || 'Walk-in',
+      phone: job.customer_phone || '',
+    },
+    services: servicesResult.rows,
+    subtotal: parseFloat(job.subtotal_amount || 0),
+    discount: parseFloat(job.discount_amount || 0),
+    tax: parseFloat(job.tax_amount || 0),
+    total: parseFloat(job.total_amount || 0),
+    currency: settings.currency || 'KES',
+    tax_rate: parseFloat(settings.tax_rate || '0'),
+  };
+
+  // Generate text receipt
+  const textReceipt = generateTextReceipt(receipt);
+  
+  // Clean phone number (remove spaces, dashes, etc.)
+  const cleanPhone = phone.replace(/\D/g, '');
+  
+  // URL encode the text
+  const encodedText = encodeURIComponent(textReceipt);
+  
+  res.json({
+    success: true,
+    data: {
+      phone: cleanPhone,
+      whatsapp_url: `https://wa.me/${cleanPhone}?text=${encodedText}`,
+      receipt_text: textReceipt,
+    },
+  });
+});
     return;
   }
 
