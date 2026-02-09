@@ -2,7 +2,6 @@ import { Response } from 'express';
 import db from '../config/database';
 import { AuthenticatedRequest } from '../types';
 import { asyncHandler } from '../middleware/errorHandler';
-import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../utils/constants';
 
 /**
  * Create a new payment and auto-calculate commission
@@ -11,9 +10,8 @@ export const createPayment = asyncHandler(async (req: AuthenticatedRequest, res:
   const { job_id, amount, payment_method, reference_no, notes } = req.body;
   const userId = req.user?.id;
 
-  // Get job details
   const jobResult = await db.query(
-    `SELECT j.*, u.commission_rate 
+    `SELECT j.*, u.commission_rate
      FROM jobs j
      LEFT JOIN users u ON j.assigned_staff_id = u.id
      WHERE j.id = $1`,
@@ -27,7 +25,6 @@ export const createPayment = asyncHandler(async (req: AuthenticatedRequest, res:
 
   const job = jobResult.rows[0];
 
-  // Create payment
   const paymentResult = await db.query(
     `INSERT INTO payments (job_id, amount, payment_method, reference_no, notes, status, created_by, created_at)
      VALUES ($1, $2, $3, $4, $5, 'completed', $6, CURRENT_TIMESTAMP)
@@ -35,7 +32,6 @@ export const createPayment = asyncHandler(async (req: AuthenticatedRequest, res:
     [job_id, amount, payment_method, reference_no, notes, userId]
   );
 
-  // Update job status and amount paid
   const currentPaid = parseFloat(job.amount_paid || '0');
   const newAmountPaid = currentPaid + parseFloat(amount);
   const totalAmount = parseFloat(job.total_amount);
@@ -46,15 +42,13 @@ export const createPayment = asyncHandler(async (req: AuthenticatedRequest, res:
   }
 
   await db.query(
-    `UPDATE jobs 
+    `UPDATE jobs
      SET amount_paid = $1, status = $2, updated_at = CURRENT_TIMESTAMP
      WHERE id = $3`,
     [newAmountPaid, newStatus, job_id]
   );
 
-  // Auto-calculate commission if job is fully paid and has assigned staff
   if (newStatus === 'paid' && job.assigned_staff_id && job.commission_rate > 0) {
-    // Check if commission already exists
     const existingCommission = await db.query(
       `SELECT id FROM commissions WHERE job_id = $1`,
       [job_id]
@@ -62,7 +56,7 @@ export const createPayment = asyncHandler(async (req: AuthenticatedRequest, res:
 
     if (existingCommission.rows.length === 0) {
       const commissionAmount = (totalAmount * job.commission_rate) / 100;
-      
+
       await db.query(
         `INSERT INTO commissions (job_id, staff_id, amount, status, created_at)
          VALUES ($1, $2, $3, 'pending', CURRENT_TIMESTAMP)`,
@@ -78,9 +72,12 @@ export const createPayment = asyncHandler(async (req: AuthenticatedRequest, res:
   });
 });
 
+/**
+ * Get all payments (paginated + filters)
+ */
 export const getPayments = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { page = 1, limit = 20, payment_method, status, date } = req.query;
-  
+
   const conditions: string[] = [];
   const params: any[] = [];
   let paramIndex = 1;
@@ -100,11 +97,13 @@ export const getPayments = asyncHandler(async (req: AuthenticatedRequest, res: R
     params.push(date);
   }
 
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const offset = (Number(page) - 1) * Number(limit);
 
-  const countResult = await db.query(`SELECT COUNT(*) FROM payments ${whereClause}`, params);
-  const total = parseInt(countResult.rows[0].count, 10);
+  const countResult = await db.query(
+    `SELECT COUNT(*) FROM payments ${whereClause}`,
+    params
+  );
 
   const result = await db.query(
     `SELECT p.*, j.job_no, u.name as created_by_name
@@ -123,12 +122,15 @@ export const getPayments = asyncHandler(async (req: AuthenticatedRequest, res: R
     pagination: {
       page: Number(page),
       limit: Number(limit),
-      total,
-      totalPages: Math.ceil(total / Number(limit)),
+      total: Number(countResult.rows[0].count),
+      totalPages: Math.ceil(countResult.rows[0].count / Number(limit)),
     },
   });
 });
 
+/**
+ * Get single payment by ID
+ */
 export const getPaymentById = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { id } = req.params;
 
@@ -141,7 +143,7 @@ export const getPaymentById = asyncHandler(async (req: AuthenticatedRequest, res
     [id]
   );
 
-  if (result.rows.length === 0) {
+  if (!result.rows.length) {
     res.status(404).json({ success: false, error: 'Payment not found' });
     return;
   }
@@ -149,6 +151,9 @@ export const getPaymentById = asyncHandler(async (req: AuthenticatedRequest, res
   res.json({ success: true, data: result.rows[0] });
 });
 
+/**
+ * Get payments for a specific job
+ */
 export const getJobPayments = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { jobId } = req.params;
 
@@ -164,9 +169,57 @@ export const getJobPayments = asyncHandler(async (req: AuthenticatedRequest, res
   res.json({ success: true, data: result.rows });
 });
 
+/**
+ * Get today's totals
+ */
+export const getTodayTotals = asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
+  const result = await db.query(`
+    SELECT 
+      COALESCE(SUM(amount), 0) AS total_amount,
+      COUNT(*) AS total_payments
+    FROM payments
+    WHERE DATE(created_at) = CURRENT_DATE
+  `);
+
+  res.json({ success: true, data: result.rows[0] });
+});
+
+/**
+ * Mpesa callback (stub)
+ */
+export const mpesaCallback = asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
+  res.status(200).json({ success: true });
+});
+
+/**
+ * Initiate Mpesa STK Push (stub)
+ */
+export const initiateMpesaSTK = asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
+  res.status(501).json({ success: false, message: 'Mpesa STK not implemented yet' });
+});
+
+/**
+ * Check Mpesa payment status (stub)
+ */
+export const checkMpesaStatus = asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
+  res.status(501).json({ success: false, message: 'Mpesa status check not implemented yet' });
+});
+
+/**
+ * Process refund (stub)
+ */
+export const processRefund = asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
+  res.status(501).json({ success: false, message: 'Refund not implemented yet' });
+});
+
 export default {
   createPayment,
   getPayments,
   getPaymentById,
   getJobPayments,
+  getTodayTotals,
+  mpesaCallback,
+  initiateMpesaSTK,
+  checkMpesaStatus,
+  processRefund,
 };
