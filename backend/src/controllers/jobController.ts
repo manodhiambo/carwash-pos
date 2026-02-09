@@ -222,46 +222,6 @@ export const getJobByNumber = asyncHandler(async (req: AuthenticatedRequest, res
  * Vehicle check-in - Create new job
  * POST /api/v1/jobs/check-in
  */
-
-/**
- * Record inventory usage for a job
- */
-const recordInventoryUsage = async (jobId: number, inventoryItems: Array<{ item_id: number; quantity: number }>, userId: number) => {
-  for (const item of inventoryItems) {
-    // Get current stock
-    const itemResult = await db.query(
-      'SELECT quantity FROM inventory_items WHERE id = $1',
-      [item.item_id]
-    );
-    
-    if (itemResult.rows.length === 0) continue;
-    
-    const currentStock = parseFloat(itemResult.rows[0].quantity);
-    const usageQty = item.quantity;
-    const newStock = currentStock - usageQty;
-    
-    // Update stock
-    await db.query(
-      'UPDATE inventory_items SET quantity = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [newStock, item.item_id]
-    );
-    
-    // Record transaction
-    await db.query(
-      `INSERT INTO inventory_transactions 
-       (item_id, transaction_type, quantity, previous_quantity, new_quantity, job_id, performed_by, notes)
-       VALUES ($1, 'stock_out', $2, $3, $4, $5, $6, $7)`,
-      [item.item_id, usageQty, currentStock, newStock, jobId, userId, 'Auto-deducted for job']
-    );
-  }
-};
-
-
-
-/**
- * Record inventory usage for a job
- */
-
 export const checkIn = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const {
     registration_no,
@@ -278,7 +238,7 @@ export const checkIn = asyncHandler(async (req: AuthenticatedRequest, res: Respo
     damage_notes,
     is_rewash,
     original_job_id,
-    inventory_items } = req.body;
+  } = req.body;
 
   if (!req.user) {
     res.status(401).json({
@@ -695,7 +655,7 @@ export const assignBay = asyncHandler(async (req: AuthenticatedRequest, res: Res
 });
 
 /**
- * Assign staff to job
+ * Assign staff to job - WITH AUTO COMMISSION CALCULATION
  * PUT /api/v1/jobs/:id/assign-staff
  */
 export const assignStaff = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -703,7 +663,7 @@ export const assignStaff = asyncHandler(async (req: AuthenticatedRequest, res: R
   const { staff_id } = req.body;
 
   // Check job exists
-  const job = await db.query(`SELECT id, status, total_amount FROM jobs WHERE id = $1`, [id]);
+  const job = await db.query(`SELECT id, status, final_amount FROM jobs WHERE id = $1`, [id]);
   if (job.rows.length === 0) {
     res.status(404).json({
       success: false,
@@ -714,21 +674,21 @@ export const assignStaff = asyncHandler(async (req: AuthenticatedRequest, res: R
 
   // Check staff exists and get commission rate
   const staff = await db.query(
-    `SELECT id, name, commission_rate FROM users WHERE id = $1 AND role IN ('attendant', 'manager')`,
+    `SELECT id, name, commission_rate FROM users WHERE id = $1 AND role IN ('attendant', 'manager') AND status = 'active'`,
     [staff_id]
   );
 
   if (staff.rows.length === 0) {
     res.status(404).json({
       success: false,
-      error: 'Staff member not found',
+      error: 'Staff member not found or inactive',
     });
     return;
   }
 
   // Assign staff to job
   const result = await db.query(
-    `UPDATE jobs SET assigned_staff_id = $1, updated_at = CURRENT_TIMESTAMP 
+    `UPDATE jobs SET assigned_staff_id = $1, updated_at = CURRENT_TIMESTAMP
      WHERE id = $2 RETURNING *`,
     [staff_id, id]
   );
@@ -736,8 +696,8 @@ export const assignStaff = asyncHandler(async (req: AuthenticatedRequest, res: R
   // If job is already completed/paid, calculate commission immediately
   const jobData = job.rows[0];
   if ((jobData.status === 'completed' || jobData.status === 'paid') && staff.rows[0].commission_rate > 0) {
-    const commissionAmount = (parseFloat(jobData.total_amount) * staff.rows[0].commission_rate) / 100;
-    
+    const commissionAmount = (parseFloat(jobData.final_amount) * staff.rows[0].commission_rate) / 100;
+
     // Check if commission already exists
     const existingCommission = await db.query(
       `SELECT id FROM commissions WHERE job_id = $1`,
@@ -757,83 +717,6 @@ export const assignStaff = asyncHandler(async (req: AuthenticatedRequest, res: R
     success: true,
     message: SUCCESS_MESSAGES.UPDATED,
     data: result.rows[0],
-  });
-});
-    return;
-  }
-
-  // Check staff exists and get commission rate
-  const staff = await db.query(
-    `SELECT id, name, commission_rate FROM users WHERE id = $1 AND role IN ('attendant', 'manager')`,
-    [staff_id]
-  );
-
-  if (staff.rows.length === 0) {
-    res.status(404).json({
-      success: false,
-      error: 'Staff member not found',
-    });
-    return;
-  }
-
-  // Assign staff to job
-  const result = await db.query(
-    `UPDATE jobs SET assigned_staff_id = $1, updated_at = CURRENT_TIMESTAMP 
-     WHERE id = $2 RETURNING *`,
-    [staff_id, id]
-  );
-
-  // If job is already completed/paid, calculate commission immediately
-  const jobData = job.rows[0];
-  if ((jobData.status === 'completed' || jobData.status === 'paid') && staff.rows[0].commission_rate > 0) {
-    const commissionAmount = (parseFloat(jobData.total_amount) * staff.rows[0].commission_rate) / 100;
-    
-    // Check if commission already exists
-    const existingCommission = await db.query(
-      `SELECT id FROM commissions WHERE job_id = $1`,
-      [id]
-    );
-
-    if (existingCommission.rows.length === 0) {
-      await db.query(
-        `INSERT INTO commissions (job_id, staff_id, amount, status, created_at)
-         VALUES ($1, $2, $3, 'pending', CURRENT_TIMESTAMP)`,
-        [id, staff_id, commissionAmount]
-      );
-    }
-  }
-
-  res.json({
-    success: true,
-    message: SUCCESS_MESSAGES.UPDATED,
-    data: result.rows[0],
-  });
-});
-    return;
-  }
-
-  // Check staff exists and is active
-  const staff = await db.query(
-    `SELECT id FROM users WHERE id = $1 AND status = 'active' AND role IN ('attendant', 'cashier')`,
-    [staff_id]
-  );
-
-  if (staff.rows.length === 0) {
-    res.status(400).json({
-      success: false,
-      error: 'Invalid or inactive staff member',
-    });
-    return;
-  }
-
-  await db.query(
-    `UPDATE jobs SET assigned_staff_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-    [staff_id, id]
-  );
-
-  res.json({
-    success: true,
-    message: 'Staff assigned successfully',
   });
 });
 
