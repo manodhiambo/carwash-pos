@@ -132,11 +132,14 @@ export const authValidators = {
 
   register: [
     body('name')
+      .trim()
+      .notEmpty()
       .withMessage('Name is required')
       .isLength({ min: 2, max: 100 })
       .withMessage('Name must be between 2 and 100 characters'),
     body('email')
       .optional()
+      .trim()
       .isEmail()
       .withMessage('Invalid email address')
       .normalizeEmail(),
@@ -146,9 +149,14 @@ export const authValidators = {
       .withMessage('Username must be between 3 and 50 characters')
       .matches(/^[a-zA-Z0-9_]+$/)
       .withMessage('Username can only contain letters, numbers, and underscores'),
+    body('password')
+      .notEmpty()
+      .withMessage('Password is required')
+      .isLength({ min: 6 })
       .withMessage('Password must be at least 6 characters'),
     body('phone')
       .optional()
+      .trim()
       .matches(/^(\+?254|0)?[17]\d{8}$/)
       .withMessage('Invalid Kenyan phone number'),
     body('role')
