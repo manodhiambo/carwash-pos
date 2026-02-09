@@ -15,7 +15,6 @@ import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../utils/constants';
 export const login = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { username, password } = req.body;
 
-  // Find user by username or email
   const result = await db.query<User>(
     `SELECT * FROM users WHERE (username = $1 OR email = $1) AND status != 'inactive'`,
     [username]
@@ -31,7 +30,6 @@ export const login = asyncHandler(async (req: AuthenticatedRequest, res: Respons
 
   const user = result.rows[0];
 
-  // Check password
   const isValidPassword = await bcrypt.compare(password, user.password_hash);
   if (!isValidPassword) {
     res.status(401).json({
@@ -41,7 +39,6 @@ export const login = asyncHandler(async (req: AuthenticatedRequest, res: Respons
     return;
   }
 
-  // Check if user is suspended
   if (user.status === 'suspended') {
     res.status(403).json({
       success: false,
@@ -50,20 +47,16 @@ export const login = asyncHandler(async (req: AuthenticatedRequest, res: Respons
     return;
   }
 
-  // Update last login
   await db.query(
     `UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1`,
     [user.id]
   );
 
-  // Generate tokens
   const token = generateToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  // Log login activity
   await logLogin(user.id, getClientIp(req), req.headers['user-agent']);
 
-  // Remove sensitive data
   const { password_hash, ...userWithoutPassword } = user;
 
   res.json({
@@ -117,7 +110,6 @@ export const refreshToken = asyncHandler(async (req: AuthenticatedRequest, res: 
     return;
   }
 
-  // Get user
   const result = await db.query<User>(
     `SELECT * FROM users WHERE id = $1 AND status = 'active'`,
     [decoded.userId]
@@ -133,7 +125,6 @@ export const refreshToken = asyncHandler(async (req: AuthenticatedRequest, res: 
 
   const user = result.rows[0];
 
-  // Generate new tokens
   const newToken = generateToken(user);
   const newRefreshToken = generateRefreshToken(user);
 
@@ -160,7 +151,6 @@ export const getProfile = asyncHandler(async (req: AuthenticatedRequest, res: Re
     return;
   }
 
-  // Get user with branch info
   const result = await db.query(
     `SELECT u.id, u.name, u.email, u.username, u.phone, u.role, u.status,
             u.branch_id, u.avatar, u.last_login, u.created_at,
@@ -200,7 +190,6 @@ export const updateProfile = asyncHandler(async (req: AuthenticatedRequest, res:
 
   const { name, email, phone, avatar } = req.body;
 
-  // Check if email is already taken by another user
   if (email) {
     const existingEmail = await db.query(
       `SELECT id FROM users WHERE email = $1 AND id != $2`,
@@ -235,7 +224,7 @@ export const updateProfile = asyncHandler(async (req: AuthenticatedRequest, res:
 });
 
 /**
- * Change password
+ * Change password (any authenticated user can change their own password)
  * POST /api/v1/auth/change-password
  */
 export const changePassword = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -249,7 +238,22 @@ export const changePassword = asyncHandler(async (req: AuthenticatedRequest, res
 
   const { currentPassword, newPassword } = req.body;
 
-  // Get user with password
+  if (!currentPassword || !newPassword) {
+    res.status(400).json({
+      success: false,
+      error: 'Current password and new password are required',
+    });
+    return;
+  }
+
+  if (newPassword.length < 8) {
+    res.status(400).json({
+      success: false,
+      error: 'New password must be at least 8 characters long',
+    });
+    return;
+  }
+
   const result = await db.query<User>(
     `SELECT password_hash FROM users WHERE id = $1`,
     [req.user.id]
@@ -257,7 +261,6 @@ export const changePassword = asyncHandler(async (req: AuthenticatedRequest, res
 
   const user = result.rows[0];
 
-  // Verify current password
   const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
   if (!isValidPassword) {
     res.status(400).json({
@@ -267,10 +270,8 @@ export const changePassword = asyncHandler(async (req: AuthenticatedRequest, res
     return;
   }
 
-  // Hash new password
   const newPasswordHash = await bcrypt.hash(newPassword, config.bcrypt.saltRounds);
 
-  // Update password
   await db.query(
     `UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
     [newPasswordHash, req.user.id]
@@ -287,7 +288,13 @@ export const changePassword = asyncHandler(async (req: AuthenticatedRequest, res
  * POST /api/v1/auth/register
  */
 export const register = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const { name, email, username, password, phone, role, branch_id } = req.body;
+  const { name, email, password, phone, role, branch_id } = req.body;
+
+  // Auto-generate username from email if not provided
+  let username = req.body.username;
+  if (!username || username.trim() === '') {
+    username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  }
 
   // Check if username exists
   const existingUsername = await db.query(
@@ -322,8 +329,8 @@ export const register = asyncHandler(async (req: AuthenticatedRequest, res: Resp
 
   // Create user
   const result = await db.query(
-    `INSERT INTO users (name, email, username, password_hash, phone, role, branch_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO users (name, email, username, password_hash, phone, role, branch_id, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
      RETURNING id, name, email, username, phone, role, status, branch_id, created_at`,
     [name, email, username, passwordHash, phone, role, branch_id]
   );
@@ -342,13 +349,11 @@ export const register = asyncHandler(async (req: AuthenticatedRequest, res: Resp
 export const forgotPassword = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { email } = req.body;
 
-  // Find user by email
   const result = await db.query(
     `SELECT id, name, email FROM users WHERE email = $1 AND status = 'active'`,
     [email]
   );
 
-  // Always return success to prevent email enumeration
   res.json({
     success: true,
     message: 'If the email exists, a password reset link has been sent',
@@ -357,11 +362,6 @@ export const forgotPassword = asyncHandler(async (req: AuthenticatedRequest, res
   if (result.rows.length === 0) {
     return;
   }
-
-  // TODO: Implement actual email sending logic
-  // const user = result.rows[0];
-  // const resetToken = generateResetToken();
-  // await sendPasswordResetEmail(user.email, resetToken);
 });
 
 /**
@@ -399,14 +399,12 @@ export const getUsers = asyncHandler(async (req: AuthenticatedRequest, res: Resp
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   const offset = (Number(page) - 1) * Number(limit);
 
-  // Get total count
   const countResult = await db.query(
     `SELECT COUNT(*) FROM users u ${whereClause}`,
     params
   );
   const total = parseInt(countResult.rows[0].count, 10);
 
-  // Get users
   const result = await db.query(
     `SELECT u.id, u.name, u.email, u.username, u.phone, u.role, u.status,
             u.branch_id, u.avatar, u.last_login, u.created_at,
@@ -470,7 +468,6 @@ export const updateUser = asyncHandler(async (req: AuthenticatedRequest, res: Re
   const { id } = req.params;
   const { name, email, phone, role, status, branch_id } = req.body;
 
-  // Check if user exists
   const existing = await db.query(`SELECT id FROM users WHERE id = $1`, [id]);
   if (existing.rows.length === 0) {
     res.status(404).json({
@@ -480,7 +477,6 @@ export const updateUser = asyncHandler(async (req: AuthenticatedRequest, res: Re
     return;
   }
 
-  // Check if email is taken by another user
   if (email) {
     const existingEmail = await db.query(
       `SELECT id FROM users WHERE email = $1 AND id != $2`,
@@ -524,7 +520,6 @@ export const resetUserPassword = asyncHandler(async (req: AuthenticatedRequest, 
   const { id } = req.params;
   const { newPassword } = req.body;
 
-  // Check if user exists
   const existing = await db.query(`SELECT id FROM users WHERE id = $1`, [id]);
   if (existing.rows.length === 0) {
     res.status(404).json({
@@ -534,7 +529,6 @@ export const resetUserPassword = asyncHandler(async (req: AuthenticatedRequest, 
     return;
   }
 
-  // Hash new password
   const passwordHash = await bcrypt.hash(newPassword, config.bcrypt.saltRounds);
 
   await db.query(
@@ -555,7 +549,6 @@ export const resetUserPassword = asyncHandler(async (req: AuthenticatedRequest, 
 export const deleteUser = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { id } = req.params;
 
-  // Prevent self-deletion
   if (req.user && req.user.id === parseInt(id, 10)) {
     res.status(400).json({
       success: false,
@@ -564,7 +557,6 @@ export const deleteUser = asyncHandler(async (req: AuthenticatedRequest, res: Re
     return;
   }
 
-  // Soft delete - just set status to inactive
   const result = await db.query(
     `UPDATE users SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING id`,
     [id]
