@@ -148,3 +148,5 @@ export { ScrollArea, ScrollBar } from './scroll-area';
 
 // Popover
 export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor } from './popover';
+
+export * from './textarea';
