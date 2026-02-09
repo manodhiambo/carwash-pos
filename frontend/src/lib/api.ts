@@ -1687,11 +1687,20 @@ export const activityLogsApi = {
 // ============================================
 
 export const receiptsApi = {
-  generate: async (jobId: string, format: 'text' | 'html' | 'json' = 'html'): Promise<ApiResponse<string>> => {
+  generate: async (jobId: string, format: 'json' | 'text' = 'json'): Promise<ApiResponse<any>> => {
     try {
-      const response = await apiClient.get<ApiResponse<string>>(`/receipts/${jobId}`, {
+      const response = await apiClient.get<ApiResponse<any>>(`/receipts/${jobId}`, {
         params: { format },
       });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  getWhatsAppLink: async (jobId: string): Promise<ApiResponse<{ phone: string; whatsapp_url: string; receipt_text: string }>> => {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>(`/receipts/${jobId}/whatsapp`);
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
