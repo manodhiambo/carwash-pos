@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { dashboardApi } from '@/lib/api';
+import { dashboardApi, commissionsApi, authApi } from '@/lib/api';
 import { formatCurrency, getRelativeTime } from '@/lib/utils';
 import { PageContainer, PageHeader } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle, StatCard } from '@/components/ui/card';
@@ -75,6 +75,23 @@ export default function DashboardPage() {
     refetchInterval: 30000,
     retry: 2,
   });
+
+  // Get current user and commission summary
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    authApi.getCurrentUser().then((response) => {
+      setUserId(response.data.id.toString());
+    });
+  }, []);
+
+  const { data: commissionSummary } = useQuery({
+    queryKey: ['my-commission-summary', userId],
+    queryFn: () => commissionsApi.getSummary(userId || ''),
+    enabled: !!userId,
+  });
+
+  const myCommissions = commissionSummary?.data;
 
   const { data: alerts } = useQuery({
     queryKey: ['dashboard-alerts'],

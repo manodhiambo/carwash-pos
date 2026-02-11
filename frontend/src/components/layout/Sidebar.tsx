@@ -17,9 +17,7 @@ import {
   Package,
   Settings,
   BarChart3,
-  Calendar,
   Wrench,
-  Receipt,
   Tags,
   Award,
   UserCog,
@@ -29,6 +27,7 @@ import {
   Building2,
   Wallet,
   History,
+  DollarSign,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores';
 
@@ -94,6 +93,18 @@ const navItems: NavItem[] = [
     roles: ['admin', 'manager'],
   },
   {
+    title: 'Staff Commissions',
+    href: '/staff-commissions',
+    icon: DollarSign,
+    roles: ['super_admin', 'admin', 'manager'],
+  },
+  {
+    title: 'My Commissions',
+    href: '/my-commissions',
+    icon: DollarSign,
+    roles: ['attendant'],
+  },
+  {
     title: 'Expenses',
     href: '/expenses',
     icon: Wallet,
@@ -129,7 +140,6 @@ export function Sidebar() {
     return user?.role && item.roles.includes(user.role);
   });
 
-  // On mobile, sidebar is always shown expanded (not collapsed)
   const isCollapsed = sidebarCollapsed;
 
   const NavLink = ({ item }: { item: NavItem }) => {
@@ -140,7 +150,6 @@ export function Sidebar() {
       <Link
         href={item.href}
         onClick={() => {
-          // Close sidebar on mobile when navigating
           if (typeof window !== 'undefined' && window.innerWidth < 1024) {
             setSidebarOpen(false);
           }
@@ -155,7 +164,6 @@ export function Sidebar() {
         )}
       >
         <Icon className={cn('h-5 w-5 shrink-0', isActive && 'text-primary')} />
-        {/* On mobile: always show text. On desktop: respect collapsed state */}
         <span className={cn('flex-1', isCollapsed && 'lg:hidden')}>
           {item.title}
         </span>
@@ -194,17 +202,13 @@ export function Sidebar() {
       <aside
         className={cn(
           'fixed left-0 top-0 z-50 h-screen border-r bg-card transition-all duration-300',
-          // Mobile: full-width sidebar, off-screen by default
           'w-64 -translate-x-full lg:translate-x-0',
-          // Mobile: slide in when open
           sidebarOpen && 'translate-x-0',
-          // Desktop: respect collapsed state
           isCollapsed ? 'lg:w-16' : 'lg:w-64'
         )}
       >
         {/* Logo */}
         <div className="flex h-16 items-center justify-between border-b px-4">
-          {/* On mobile: always show full logo. On desktop: respect collapsed state */}
           <Link href="/dashboard" className={cn('flex items-center gap-2', isCollapsed && 'lg:hidden')}>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Car className="h-5 w-5" />
@@ -232,7 +236,6 @@ export function Sidebar() {
         {/* Bottom section */}
         <div className="absolute bottom-0 left-0 right-0 border-t p-2">
           <div className="flex items-center justify-between">
-            {/* Collapse button - hidden on mobile */}
             <Button
               variant="ghost"
               size="icon-sm"
@@ -246,7 +249,6 @@ export function Sidebar() {
               )}
             </Button>
 
-            {/* Logout button - always show on mobile, respect collapsed on desktop */}
             <Button
               variant="ghost"
               size="sm"
