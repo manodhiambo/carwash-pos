@@ -71,7 +71,7 @@ const userSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email'),
   phone: z.string().min(10, 'Please enter a valid phone number'),
-  role: z.enum(['admin', 'manager', 'supervisor', 'cashier', 'attendant']),
+  role: z.enum(['super_admin', 'admin', 'manager', 'supervisor', 'cashier', 'attendant']),
   password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   commission_rate: z.number().min(0).max(100).default(0),
   is_active: z.boolean().default(true),
@@ -177,7 +177,7 @@ export default function StaffPage() {
       setValue('phone', user.phone);
       setValue('role', user.role);
       setValue('is_active', user.is_active);
-      setValue('commission_rate', user.commission_rate || 0);
+      setValue('commission_rate', (user as any).commission_rate || 0);
       setValue('password', '');
     } else {
       reset();
@@ -374,7 +374,7 @@ export default function StaffPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm font-medium">{user.commission_rate || 0}%</span>
+                      <span className="text-sm font-medium">{(user as any).commission_rate || 0}%</span>
                     </TableCell>
                     <TableCell>
                       {user.is_active ? (

@@ -264,13 +264,13 @@ export default function JobsPage() {
                     />
                   ) : (
                     filteredJobs.map((job) => {
-                      const nextStatus = getNextStatus(job.status);
+                      const nextStatus = getNextStatus(job.status as JobStatus);
 
                       return (
                         <TableRow key={job.id}>
                           <TableCell>
                             <div className="font-mono font-medium">{job.job_number}</div>
-                            <PriorityBadge priority={job.priority} />
+                            <PriorityBadge priority={job.priority ?? 'normal'} />
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -289,7 +289,7 @@ export default function JobsPage() {
                           </TableCell>
                           <TableCell>
                             <div className="max-w-[200px]">
-                              {job.services.slice(0, 2).map((s) => (
+                              {(job.services ?? []).slice(0, 2).map((s) => (
                                 <Badge
                                   key={s.id}
                                   variant="secondary"
@@ -298,9 +298,9 @@ export default function JobsPage() {
                                   {s.service.name}
                                 </Badge>
                               ))}
-                              {job.services.length > 2 && (
+                              {(job.services ?? []).length > 2 && (
                                 <Badge variant="outline" className="text-xs">
-                                  +{job.services.length - 2}
+                                  +{(job.services ?? []).length - 2}
                                 </Badge>
                               )}
                             </div>
@@ -337,11 +337,11 @@ export default function JobsPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <StatusBadge status={job.payment_status} />
+                            <StatusBadge status={job.payment_status ?? 'unpaid'} />
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              {getRelativeTime(job.check_in_time)}
+                              {getRelativeTime(job.check_in_time ?? job.created_at ?? '')}
                             </div>
                             <div className="text-xs text-muted-foreground flex items-center gap-1">
                               <Clock className="h-3 w-3" />

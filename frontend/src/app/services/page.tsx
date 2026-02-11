@@ -205,7 +205,7 @@ export default function ServicesPage() {
       setValue('description', service.description || '');
       setValue('category', service.category);
       setValue('duration_minutes', service.duration_minutes);
-      setValue('is_addon', service.is_addon);
+      setValue('is_addon', service.is_addon ?? false);
       const prices: Record<string, number> = {};
       // Initialize all vehicle types to 0, then overlay existing prices
       vehicleTypes.forEach((vt) => {

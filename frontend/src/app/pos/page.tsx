@@ -291,7 +291,7 @@ export default function POSPage() {
                           {job.vehicle?.registration_number}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
-                          {job.services.slice(0, 2).map((s) => (
+                          {(job.services ?? []).slice(0, 2).map((s) => (
                             <Badge key={s.id} variant="secondary" className="text-xs">
                               {s.service.name}
                             </Badge>
@@ -334,7 +334,7 @@ export default function POSPage() {
                   </div>
 
                   <div className="space-y-2">
-                    {selectedJob.services.map((s) => (
+                    {(selectedJob.services ?? []).map((s) => (
                       <div key={s.id} className="flex items-center justify-between">
                         <span>{s.service.name}</span>
                         <span className="font-medium">{formatCurrency(s.subtotal)}</span>
@@ -347,7 +347,7 @@ export default function POSPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span>Subtotal</span>
-                      <span>{formatCurrency(selectedJob.subtotal)}</span>
+                      <span>{formatCurrency(selectedJob.subtotal ?? 0)}</span>
                     </div>
                     {selectedJob.discount_amount > 0 && (
                       <div className="flex items-center justify-between text-sm text-success-600">
@@ -357,7 +357,7 @@ export default function POSPage() {
                     )}
                     <div className="flex items-center justify-between text-sm">
                       <span>Tax</span>
-                      <span>{formatCurrency(selectedJob.tax_amount)}</span>
+                      <span>{formatCurrency(selectedJob.tax_amount ?? 0)}</span>
                     </div>
                   </div>
 

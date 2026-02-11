@@ -8,7 +8,9 @@ export interface User {
   name: string;
   phone: string;
   role: UserRole;
-  branch_id: string;
+  username?: string;
+  branch_id?: number | string;
+  commission_rate?: number;
   avatar_url?: string;
   is_active: boolean;
   last_login?: string;
@@ -16,7 +18,7 @@ export interface User {
   updated_at: string;
 }
 
-export type UserRole = 'admin' | 'manager' | 'cashier' | 'attendant' | 'supervisor';
+export type UserRole = 'super_admin' | 'admin' | 'manager' | 'cashier' | 'attendant' | 'supervisor';
 
 export interface AuthState {
   user: User | null;
@@ -78,14 +80,14 @@ export interface Customer {
   phone: string;
   email?: string;
   address?: string;
-  customer_type: CustomerType;
+  customer_type?: CustomerType;
   loyalty_points: number;
   total_visits: number;
   total_spent: number;
   notes?: string;
-  is_active: boolean;
+  is_active?: boolean;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   vehicles?: Vehicle[];
   subscriptions?: CustomerSubscription[];
 }
@@ -97,7 +99,7 @@ export interface CustomerFormData {
   phone: string;
   email?: string;
   address?: string;
-  customer_type: CustomerType;
+  customer_type?: CustomerType;
   notes?: string;
 }
 
@@ -107,7 +109,8 @@ export interface CustomerFormData {
 
 export interface Vehicle {
   id: string;
-  registration_number: string;
+  registration_no: string;
+  registration_number?: string;
   make?: string;
   model?: string;
   color?: string;
@@ -116,13 +119,13 @@ export interface Vehicle {
   customer_id?: string;
   customer?: Customer;
   notes?: string;
-  total_visits: number;
+  total_visits?: number;
   last_visit?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
-export type VehicleType = 'saloon' | 'suv' | 'pickup' | 'van' | 'motorcycle' | 'bus' | 'truck' | 'trailer';
+export type VehicleType = 'saloon' | 'sedan' | 'suv' | 'pickup' | 'van' | 'motorcycle' | 'bus' | 'truck' | 'trailer';
 
 export interface VehicleFormData {
   registration_number: string;
@@ -144,12 +147,12 @@ export interface Service {
   name: string;
   description?: string;
   category: ServiceCategory;
-  base_price?: number;
+  base_price: number;
   duration_minutes: number;
-  is_addon: boolean;
+  is_addon?: boolean;
   is_active: boolean;
   prices?: ServicePrice[];
-  pricing?: ServicePrice[]; // Backend returns 'pricing' instead of 'prices'
+  pricing?: ServicePrice[];
   created_at: string;
   updated_at: string;
 }
@@ -157,9 +160,9 @@ export interface Service {
 export type ServiceCategory = 'wash' | 'detail' | 'polish' | 'interior' | 'exterior' | 'specialty' | 'package';
 
 export interface ServicePrice {
-  id: string;
-  service_id: string;
-  vehicle_type: VehicleType;
+  id?: string;
+  service_id?: string;
+  vehicle_type: VehicleType | string;
   price: number;
 }
 
@@ -169,7 +172,7 @@ export interface ServiceFormData {
   category: ServiceCategory;
   base_price?: number;
   duration_minutes: number;
-  is_addon: boolean;
+  is_addon?: boolean;
   pricing?: { vehicle_type: VehicleType; price: number }[];
   [key: string]: unknown;
 }
@@ -180,38 +183,41 @@ export interface ServiceFormData {
 
 export interface Job {
   id: string;
-  job_number: string;
+  job_no: string;
+  job_number?: string;
   vehicle_id: string;
-  vehicle: Vehicle;
+  vehicle?: Vehicle;
   customer_id?: string;
   customer?: Customer;
-  bay_id?: string;
+  bay_id?: number | string;
   bay?: Bay;
   assigned_staff_id?: string;
   assigned_staff?: User;
-  status: JobStatus;
-  priority: JobPriority;
+  status: JobStatus | string;
+  priority?: JobPriority;
   notes?: string;
-  check_in_time: string;
+  check_in_time?: string;
   start_time?: string;
   end_time?: string;
-  estimated_duration: number;
+  estimated_duration?: number;
   actual_duration?: number;
-  services: JobService[];
-  subtotal: number;
+  services?: JobService[];
+  subtotal?: number;
+  total_amount: number;
   discount_amount: number;
   discount_type?: DiscountType;
-  tax_amount: number;
-  total_amount: number;
-  payment_status: PaymentStatus;
-  created_by: string;
+  tax_amount?: number;
+  final_amount: number;
+  amount_paid: number;
+  payment_status?: PaymentStatus;
+  created_by?: string;
   created_at: string;
   updated_at: string;
 }
 
 export type JobStatus = 'checked_in' | 'in_queue' | 'washing' | 'detailing' | 'completed' | 'paid' | 'cancelled';
 
-export type JobPriority = 'normal' | 'high' | 'urgent';
+export type JobPriority = 'normal' | 'low' | 'medium' | 'high' | 'urgent';
 
 export type PaymentStatus = 'unpaid' | 'partial' | 'paid' | 'refunded';
 
@@ -264,21 +270,23 @@ export interface CheckInPayload {
 
 export interface Payment {
   id: string;
-  payment_number: string;
+  payment_number?: string;
   job_id: string;
   job?: Job;
   amount: number;
   payment_method: PaymentMethod;
-  payment_status: PaymentTransactionStatus;
+  payment_status?: PaymentTransactionStatus;
+  status?: string;
+  reference_no?: string;
   reference_number?: string;
   mpesa_receipt?: string;
   mpesa_phone?: string;
   notes?: string;
-  received_by: string;
+  received_by?: string;
   received_by_user?: User;
   cash_session_id?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export type PaymentMethod = 'cash' | 'mpesa' | 'card' | 'bank_transfer' | 'loyalty_points';
@@ -304,12 +312,12 @@ export interface Bay {
   bay_number: number;
   bay_type: BayType;
   status: BayStatus;
-  branch_id: string;
+  branch_id?: string;
   current_job_id?: string;
   current_job?: Job;
   capacity: number;
   is_active: boolean;
-  equipment: Equipment[];
+  equipment?: Equipment[];
   created_at: string;
   updated_at: string;
 }
@@ -336,12 +344,150 @@ export interface Equipment {
   last_maintenance?: string;
   next_maintenance?: string;
   notes?: string;
+  is_active?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type EquipmentStatus = 'operational' | 'needs_maintenance' | 'maintenance' | 'under_repair' | 'out_of_service';
+
+// ============================================
+// Commission Types
+// ============================================
+
+export interface Commission {
+  id: string;
+  staff_id: string;
+  job_id: string;
+  job_service_id?: string;
+  amount: number;
+  commission_rate: number;
+  base_amount: number;
+  status: 'pending' | 'paid' | 'cancelled';
+  paid_at?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface CommissionSummary {
+  staff_id: string;
+  staff_name: string;
+  commission_rate: number;
+  total_jobs: number;
+  total_earnings: number;
+  pending_commission: number;
+  paid_commission: number;
+  period_start?: string;
+  period_end?: string;
+}
+
+// ============================================
+// Subscription Types
+// ============================================
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  description?: string;
+  duration_days: number;
+  price: number;
+  wash_limit?: number;
+  services_included?: string[];
+  vehicle_types?: VehicleType[];
   is_active: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export type EquipmentStatus = 'operational' | 'needs_maintenance' | 'under_repair' | 'out_of_service';
+export interface CustomerSubscription {
+  id: string;
+  customer_id: string;
+  customer?: Customer;
+  plan_id: string;
+  plan?: SubscriptionPlan;
+  vehicle_id: string;
+  vehicle?: Vehicle;
+  start_date: string;
+  end_date: string;
+  status: SubscriptionStatus;
+  washes_used: number;
+  washes_remaining?: number;
+  amount_paid: number;
+  payment_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'suspended';
+
+// ============================================
+// API Response Types
+// ============================================
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext?: boolean;
+    hasPrev?: boolean;
+  };
+}
+
+export interface ApiError {
+  success: false;
+  error: string;
+  errors?: Record<string, string[]>;
+  details?: Record<string, string[]>;
+}
+
+export interface PaginatedResponse<T> {
+  success: boolean;
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
+}
+
+// ============================================
+// Form & Filter Types
+// ============================================
+
+export interface DateRange {
+  from: Date | undefined;
+  to: Date | undefined;
+}
+
+export interface FilterState {
+  search: string;
+  status?: string;
+  category?: string;
+  dateRange?: DateRange;
+  branch_id?: string;
+}
+
+export interface SelectOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
 
 // ============================================
 // Inventory Types
@@ -362,7 +508,7 @@ export interface InventoryItem {
   supplier_id?: string;
   supplier?: Supplier;
   location?: string;
-  is_active: boolean;
+  is_active?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -377,7 +523,7 @@ export interface Supplier {
   email?: string;
   address?: string;
   notes?: string;
-  is_active: boolean;
+  is_active?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -414,45 +560,6 @@ export interface InventoryFormData {
 }
 
 // ============================================
-// Subscription Types
-// ============================================
-
-export interface SubscriptionPlan {
-  id: string;
-  name: string;
-  description?: string;
-  duration_days: number;
-  price: number;
-  wash_limit?: number;
-  services_included: string[];
-  vehicle_types: VehicleType[];
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CustomerSubscription {
-  id: string;
-  customer_id: string;
-  customer?: Customer;
-  plan_id: string;
-  plan?: SubscriptionPlan;
-  vehicle_id: string;
-  vehicle?: Vehicle;
-  start_date: string;
-  end_date: string;
-  status: SubscriptionStatus;
-  washes_used: number;
-  washes_remaining?: number;
-  amount_paid: number;
-  payment_id?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'suspended';
-
-// ============================================
 // Expense & Cash Management Types
 // ============================================
 
@@ -470,7 +577,7 @@ export interface Expense {
   approved_by_user?: User;
   approved_at?: string;
   notes?: string;
-  branch_id: string;
+  branch_id?: string;
   cash_session_id?: string;
   created_by: string;
   created_by_user?: User;
@@ -482,31 +589,12 @@ export type ExpenseCategory = 'utilities' | 'supplies' | 'maintenance' | 'salari
 
 export type ExpenseStatus = 'pending' | 'approved' | 'rejected';
 
-export interface CashSession {
-  id: string;
-  user_id: string;
-  user?: User;
-  branch_id: string;
-  opening_balance: number;
-  closing_balance?: number;
-  expected_balance?: number;
-  variance?: number;
-  status: CashSessionStatus;
-  opened_at: string;
-  closed_at?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export type CashSessionStatus = 'open' | 'closed';
-
 // ============================================
-// Report Types
+// Dashboard & Reports
 // ============================================
 
 export interface DashboardMetrics {
-  today: {
+  today?: {
     total_jobs: number;
     completed_jobs: number;
     total_revenue: number;
@@ -514,62 +602,18 @@ export interface DashboardMetrics {
     vehicles_in_queue: number;
     active_bays: number;
   };
-  comparison: {
+  comparison?: {
     jobs_change: number;
     revenue_change: number;
   };
-  recent_jobs: Job[];
-  bay_status: Bay[];
-  low_stock_items: InventoryItem[];
-  pending_payments: Job[];
-}
-
-export interface SalesReport {
-  period: string;
-  total_revenue: number;
-  total_jobs: number;
-  average_job_value: number;
-  by_payment_method: {
-    method: PaymentMethod;
-    amount: number;
-    count: number;
-  }[];
-  by_service: {
-    service_id: string;
-    service_name: string;
-    count: number;
-    revenue: number;
-  }[];
-  by_day: {
-    date: string;
-    revenue: number;
-    jobs: number;
-  }[];
-}
-
-export interface OperationalReport {
-  period: string;
-  total_jobs: number;
-  completed_jobs: number;
-  cancelled_jobs: number;
-  average_wait_time: number;
-  average_service_time: number;
-  bay_utilization: {
-    bay_id: string;
-    bay_name: string;
-    jobs_completed: number;
-    utilization_rate: number;
-  }[];
-  staff_performance: {
-    staff_id: string;
-    staff_name: string;
-    jobs_completed: number;
-    average_time: number;
-  }[];
+  recent_jobs?: Job[];
+  bay_status?: Bay[];
+  low_stock_items?: InventoryItem[];
+  pending_payments?: Job[];
 }
 
 // ============================================
-// Activity Log Types
+// Activity Log
 // ============================================
 
 export interface ActivityLog {
@@ -586,153 +630,82 @@ export interface ActivityLog {
 }
 
 // ============================================
+// Cash Session Types
+// ============================================
+
+export interface CashSession {
+  id: string;
+  branch_id?: string;
+  opened_by: string;
+  closed_by?: string;
+  opening_balance: number;
+  closing_balance?: number;
+  expected_balance?: number;
+  difference?: number;
+  notes?: string;
+  status: 'open' | 'closed';
+  opened_at: string;
+  closed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================
+// Report Types
+// ============================================
+
+export interface SalesReport {
+  total_revenue: number;
+  total_jobs: number;
+  total_customers: number;
+  average_ticket: number;
+  payment_breakdown: Record<string, number>;
+  service_breakdown: Array<{ name: string; count: number; revenue: number }>;
+  daily_revenue?: Array<{ date: string; revenue: number; jobs: number }>;
+}
+
+export interface OperationalReport {
+  bay_utilization: Array<{ bay_id: string; name: string; utilization: number }>;
+  staff_performance: Array<{ staff_id: string; name: string; jobs_completed: number; revenue: number }>;
+  average_wait_time: number;
+  average_service_time: number;
+}
+
+// ============================================
 // Settings Types
 // ============================================
 
 export interface SystemSettings {
   id: string;
-  branch_id?: string;
   key: string;
   value: string;
-  type: SettingType;
-  category: SettingCategory;
+  category: string;
   description?: string;
-  updated_by?: string;
+  created_at: string;
   updated_at: string;
 }
 
-export type SettingType = 'string' | 'number' | 'boolean' | 'json';
-
-export type SettingCategory = 'general' | 'payments' | 'printing' | 'notifications' | 'loyalty' | 'appearance';
+// ============================================
+// Promotion Types
+// ============================================
 
 export interface Promotion {
   id: string;
   name: string;
+  code: string;
   description?: string;
   discount_type: DiscountType;
   discount_value: number;
+  min_amount?: number;
+  max_discount?: number;
   start_date: string;
   end_date: string;
-  min_purchase?: number;
-  max_discount?: number;
+  is_active: boolean;
   usage_limit?: number;
   usage_count: number;
-  applicable_services?: string[];
-  applicable_vehicle_types?: VehicleType[];
-  promo_code?: string;
-  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
-
-
-// Commission Types
-export interface Commission {
-  id: string;
-  staff_id: string;
-  job_id: string;
-  job_service_id?: string;
-  amount: number;
-  commission_rate: number;
-  base_amount: number;
-  status: 'pending' | 'paid' | 'cancelled';
-  paid_at?: string;
-  notes?: string;
-  created_at: string;
-}
-
-export interface CommissionSummary {
-  staff_id: string;
-  staff_name: string;
-  commission_rate: number;
-  total_jobs: number;
-  total_earnings: number;
-  pending_commission: number;
-  paid_commission: number;
-  period_start: string;
-  period_end: string;
-}
-
-// ============================================
-// API Response Types
-// ============================================
-
-export interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  message?: string;
-}
-
-export interface ApiError {
-  success: false;
-  error: string;
-  details?: Record<string, string[]>;
-}
-
-export interface PaginatedResponse<T> {
-  success: boolean;
-  data: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-    // Snake_case aliases (populated by response interceptor)
-    total_pages: number;
-    has_next: boolean;
-    has_prev: boolean;
-  };
-}
-
-export interface PaginationParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  sort_by?: string;
-  sort_order?: 'asc' | 'desc';
-}
-
-// ============================================
-// Form & Filter Types
-// ============================================
-
-export interface DateRange {
-  from: Date | undefined;
-  to: Date | undefined;
-}
-
-export interface FilterState {
-  search: string;
-  status?: string;
-  category?: string;
-  dateRange?: DateRange;
-  branch_id?: string;
-}
-
-export interface SelectOption {
-  value: string;
-  label: string;
-  disabled?: boolean;
-}
-
-// ============================================
-// Notification Types
-// ============================================
-
-export interface Notification {
-  id: string;
-  user_id: string;
-  title: string;
-  message: string;
-  type: NotificationType;
-  is_read: boolean;
-  action_url?: string;
-  created_at: string;
-}
-
-export type NotificationType = 'info' | 'success' | 'warning' | 'error';
 
 // ============================================
 // Receipt Types

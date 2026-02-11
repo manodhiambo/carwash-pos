@@ -16,14 +16,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SimpleSelect } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/input';
-import { Checkbox, LabeledCheckbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Car,
   Search,
-  User,
+  User as UserIcon,
   Phone,
   Wrench,
   Clock,
@@ -34,7 +33,7 @@ import {
   Plus,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { VehicleType, Service, JobPriority } from '@/types';
+import { VehicleType, Service, JobPriority, Bay, User } from '@/types';
 
 const vehicleTypes = [
   { value: 'saloon', label: 'Sedan / Saloon' },
@@ -115,9 +114,9 @@ export default function CheckInPage() {
     queryFn: () => usersApi.getAll({ limit: 50 }),
   });
 
-  const services = servicesData?.data || [];
-  const availableBays = (baysData?.data || []).filter((b) => b.status === 'available');
-  const staffList = (staffData?.data || []).filter((u) => ['attendant', 'supervisor'].includes(u.role));
+  const services = (servicesData?.data || []) as Service[];
+  const availableBays = ((baysData?.data || []) as Bay[]).filter((b) => b.status === 'available');
+  const staffList = ((staffData?.data || []) as User[]).filter((u) => ['attendant', 'supervisor'].includes(u.role));
 
   // Search for existing vehicle
   const handleVehicleSearch = async () => {
@@ -170,8 +169,7 @@ export default function CheckInPage() {
     selectedServices.forEach((serviceId) => {
       const service = services.find((s) => String(s.id) === serviceId);
       if (service) {
-        // Use pricing array from backend (may also be named 'prices')
-        const pricing = service.pricing || service.prices || [];
+        const pricing = (service as any).pricing || (service as any).prices || [];
         const priceInfo = pricing.find((p: { vehicle_type: string; price: number }) => p.vehicle_type === vehicleType);
         total += priceInfo?.price || service.base_price || 0;
       }
@@ -193,8 +191,7 @@ export default function CheckInPage() {
 
   // Get price for service based on vehicle type
   const getServicePrice = (service: Service) => {
-    // Use pricing array from backend (may also be named 'prices')
-    const pricing = (service as Service & { pricing?: { vehicle_type: string; price: number }[] }).pricing || service.prices || [];
+    const pricing = (service as any).pricing || (service as any).prices || [];
     const priceInfo = pricing.find((p: { vehicle_type: string; price: number }) => p.vehicle_type === vehicleType);
     return priceInfo?.price || service.base_price || 0;
   };
@@ -217,11 +214,10 @@ export default function CheckInPage() {
         notes: data.notes,
       });
 
-      toast.success(`Vehicle checked in! Job #${job.job_number}`);
+      toast.success(`Vehicle checked in! Job #${(job as any).job_number}`);
       router.push('/jobs');
-    } catch (error: unknown) {
-      const err = error as { error?: string };
-      toast.error(err.error || 'Failed to check in vehicle');
+    } catch (error: any) {
+      toast.error(error.error || 'Failed to check in vehicle');
     }
   };
 
@@ -340,7 +336,7 @@ export default function CheckInPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
+                  <UserIcon className="h-5 w-5" />
                   Customer Information (Optional)
                 </CardTitle>
               </CardHeader>
@@ -385,7 +381,7 @@ export default function CheckInPage() {
                   <>
                     <div className="grid gap-3 md:grid-cols-2">
                       {services
-                        .filter((s) => s && s.id && !s.is_addon && s.is_active !== false)
+                        .filter((s) => s && s.id && !(s as any).is_addon && (s.is_active !== false))
                         .map((service) => {
                           const price = getServicePrice(service);
                           const isSelected = selectedServices.has(String(service.id));
@@ -426,13 +422,13 @@ export default function CheckInPage() {
                     </div>
 
                     {/* Add-ons */}
-                    {services.some((s) => s && s.id && s.is_addon && s.is_active !== false) && (
+                    {services.some((s) => s && s.id && (s as any).is_addon && (s.is_active !== false)) && (
                       <>
                         <Separator className="my-4" />
                         <h4 className="font-medium mb-3">Add-ons</h4>
                         <div className="grid gap-3 md:grid-cols-3">
                           {services
-                            .filter((s) => s && s.id && s.is_addon && s.is_active !== false)
+                            .filter((s) => s && s.id && (s as any).is_addon && (s.is_active !== false))
                             .map((service) => {
                               const price = getServicePrice(service);
                               const isSelected = selectedServices.has(String(service.id));

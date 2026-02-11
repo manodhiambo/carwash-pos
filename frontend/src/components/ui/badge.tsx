@@ -109,12 +109,14 @@ function StatusBadge({ status, className, ...props }: StatusBadgeProps) {
 
 // Priority badge
 interface PriorityBadgeProps extends Omit<BadgeProps, 'variant'> {
-  priority: 'normal' | 'high' | 'urgent';
+  priority: 'low' | 'normal' | 'medium' | 'high' | 'urgent';
 }
 
 function PriorityBadge({ priority, className, ...props }: PriorityBadgeProps) {
   const variants: Record<string, BadgeProps['variant']> = {
+    low: 'secondary',
     normal: 'secondary',
+    medium: 'default',
     high: 'warning',
     urgent: 'destructive',
   };

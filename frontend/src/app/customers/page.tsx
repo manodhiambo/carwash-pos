@@ -168,7 +168,7 @@ export default function CustomersPage() {
       setValue('phone', customer.phone);
       setValue('email', customer.email || '');
       setValue('address', customer.address || '');
-      setValue('customer_type', customer.customer_type);
+      setValue('customer_type', customer.customer_type || 'individual');
       setValue('notes', customer.notes || '');
     } else {
       reset();
@@ -184,7 +184,8 @@ export default function CustomersPage() {
     }
   };
 
-  const getCustomerTypeIcon = (type: CustomerType) => {
+  const getCustomerTypeIcon = (type?: CustomerType) => {
+    if (!type) return null;
     switch (type) {
       case 'vip':
         return <Crown className="h-4 w-4 text-yellow-500" />;
@@ -353,7 +354,7 @@ export default function CustomersPage() {
                         }
                         className="capitalize"
                       >
-                        {customer.customer_type}
+                        {customer.customer_type || 'individual'}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -408,18 +409,18 @@ export default function CustomersPage() {
       </Card>
 
       {/* Pagination */}
-      {pagination && pagination.total_pages > 1 && (
+      {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
           <p className="text-sm text-muted-foreground">
-            Showing {(page - 1) * pagination.limit + 1} to{' '}
-            {Math.min(page * pagination.limit, pagination.total)} of {pagination.total}
+            Showing {(page - 1) * (pagination.limit || 20) + 1} to{' '}
+            {Math.min(page * (pagination.limit || 20), pagination.total)} of {pagination.total}
           </p>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={!pagination.has_prev}
+              disabled={!pagination.hasPrev}
             >
               Previous
             </Button>
@@ -427,7 +428,7 @@ export default function CustomersPage() {
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => p + 1)}
-              disabled={!pagination.has_next}
+              disabled={!pagination.hasNext}
             >
               Next
             </Button>

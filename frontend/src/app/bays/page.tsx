@@ -172,8 +172,8 @@ export default function BaysPage() {
     },
   });
 
-  const bays = baysData?.data || [];
-  const equipment = equipmentData?.data || [];
+  const bays = (baysData?.data || []) as Bay[];
+  const equipment = (equipmentData?.data || []) as Equipment[];
 
   const availableBays = bays.filter((b) => b.status === 'available').length;
   const occupiedBays = bays.filter((b) => b.status === 'occupied').length;

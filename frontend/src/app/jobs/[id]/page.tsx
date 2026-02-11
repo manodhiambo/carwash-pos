@@ -340,7 +340,7 @@ export default function JobDetailPage() {
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">VAT (16%)</span>
-                <span>{formatCurrency(job.tax_amount)}</span>
+                <span>{formatCurrency(job.tax_amount ?? 0)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">
