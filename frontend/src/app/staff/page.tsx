@@ -73,6 +73,7 @@ const userSchema = z.object({
   phone: z.string().min(10, 'Please enter a valid phone number'),
   role: z.enum(['admin', 'manager', 'supervisor', 'cashier', 'attendant']),
   password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+  commission_rate: z.number().min(0).max(100).default(0),
   is_active: z.boolean().default(true),
 });
 
@@ -104,6 +105,7 @@ export default function StaffPage() {
     resolver: zodResolver(userSchema),
     defaultValues: {
       role: 'attendant',
+      commission_rate: 0,
       is_active: true,
     },
   });
@@ -175,6 +177,7 @@ export default function StaffPage() {
       setValue('phone', user.phone);
       setValue('role', user.role);
       setValue('is_active', user.is_active);
+      setValue('commission_rate', user.commission_rate || 0);
       setValue('password', '');
     } else {
       reset();
@@ -314,6 +317,7 @@ export default function StaffPage() {
                 <TableHead>Staff Member</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Commission</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last Login</TableHead>
                 <TableHead>Joined</TableHead>
@@ -368,6 +372,9 @@ export default function StaffPage() {
                       <Badge variant={getRoleBadgeVariant(user.role)} className="capitalize">
                         {user.role}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm font-medium">{user.commission_rate || 0}%</span>
                     </TableCell>
                     <TableCell>
                       {user.is_active ? (
@@ -469,6 +476,25 @@ export default function StaffPage() {
               <Input id="phone" {...register('phone')} placeholder="0712 345 678" />
               {errors.phone && (
                 <p className="text-sm text-destructive">{errors.phone.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="commission_rate">Commission Rate (%)</Label>
+              <Input
+                id="commission_rate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                {...register('commission_rate', { valueAsNumber: true })}
+                placeholder="10"
+              />
+              <p className="text-xs text-muted-foreground">
+                Percentage of job total earned as commission (e.g., 10 for 10%)
+              </p>
+              {errors.commission_rate && (
+                <p className="text-sm text-destructive">{errors.commission_rate.message}</p>
               )}
             </div>
 
