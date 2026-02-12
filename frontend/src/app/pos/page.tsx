@@ -3,7 +3,7 @@
 import React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { jobsApi, paymentsApi } from '@/lib/api';
+import { jobsApi, paymentsApi, receiptsApi } from '@/lib/api';
 import { formatCurrency, normalizePhoneNumber, cn } from '@/lib/utils';
 import { PageContainer, PageHeader } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -38,6 +38,8 @@ import {
   Printer,
   Clock,
   ChevronRight,
+  MessageCircle,
+  Eye,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Job, PaymentMethod } from '@/types';
@@ -577,19 +579,43 @@ export default function POSPage() {
               </div>
             )}
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="flex-wrap gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => setSuccessDialog({ open: false })}>
               Close
             </Button>
-            <Button onClick={() => {
-              // Print receipt
-              if (successDialog.job) {
-                window.open(`/receipts/${successDialog.job.id}`, '_blank');
-              }
-              setSuccessDialog({ open: false });
-            }}>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!successDialog.job) return;
+                try {
+                  const response = await receiptsApi.getWhatsAppLink(successDialog.job.id);
+                  window.open(response.data.whatsapp_url, '_blank');
+                } catch (err: any) {
+                  toast.error(err?.error || 'Could not send WhatsApp. Customer may not have a phone number.');
+                }
+              }}
+            >
+              <MessageCircle className="mr-2 h-4 w-4" />
+              WhatsApp
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (successDialog.job) {
+                  window.open(`/receipts/${successDialog.job.id}`, '_blank');
+                }
+              }}
+            >
               <Printer className="mr-2 h-4 w-4" />
-              Print Receipt
+              Print
+            </Button>
+            <Button onClick={() => {
+              if (successDialog.job) {
+                window.location.href = `/receipts/${successDialog.job.id}`;
+              }
+            }}>
+              <Eye className="mr-2 h-4 w-4" />
+              View Receipt
             </Button>
           </DialogFooter>
         </DialogContent>

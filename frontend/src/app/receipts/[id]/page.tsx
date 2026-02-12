@@ -6,6 +6,7 @@ import { MainLayout } from '@/components/layout';
 import { PageHeader, PageContainer } from '@/components/layout/PageHeader';
 import { Button, Card, Badge, Spinner, Separator } from '@/components/ui';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { receiptsApi } from '@/lib/api';
 import {
   ArrowLeft,
   Printer,
@@ -16,7 +17,9 @@ import {
   CheckCircle,
   Car,
   AlertTriangle,
+  MessageCircle,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface ReceiptData {
   id: string;
@@ -42,7 +45,6 @@ interface ReceiptData {
     plate: string;
     make: string;
     model: string;
-    type: string;
   };
 
   bay: string;
@@ -74,9 +76,6 @@ interface ReceiptData {
   change: number;
   balanceDue: number;
 
-  loyaltyPointsEarned: number;
-  loyaltyPointsBalance: number;
-
   footerMessage: string;
 }
 
@@ -89,6 +88,7 @@ export default function ReceiptPage() {
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchReceipt();
@@ -96,74 +96,73 @@ export default function ReceiptPage() {
 
   const fetchReceipt = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const response = await receiptsApi.generate(jobId, 'json');
+      const data = response.data;
 
-      // Mock receipt data
+      // Map backend response to ReceiptData interface
+      const services = data.services || [];
+      const payments = data.payments || [];
+      const amountPaid = payments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+
       setReceipt({
         id: jobId,
-        receiptNumber: 'RCP-2024-0156',
-        jobNumber: 'J-2024-0156',
-        date: '2024-02-18T15:30:00Z',
+        receiptNumber: data.receipt_no || '',
+        jobNumber: data.job_no || '',
+        date: data.date || '',
 
         business: {
-          name: 'Sparkle Car Wash',
-          tagline: 'Where Every Car Shines',
-          address: 'Moi Avenue, Nairobi, Kenya',
-          phone: '+254 712 345 678',
-          email: 'info@sparklecarwash.co.ke',
-          vatNumber: 'P051234567X',
+          name: data.business?.name || '',
+          tagline: data.business?.tagline || '',
+          address: data.business?.address || '',
+          phone: data.business?.phone || '',
+          email: data.business?.email || '',
         },
 
-        customer: {
-          name: 'John Kamau',
-          phone: '+254 712 345 678',
-        },
+        customer: data.customer?.name && data.customer.name !== 'Walk-in'
+          ? { name: data.customer.name, phone: data.customer.phone || '' }
+          : null,
 
         vehicle: {
-          plate: 'KDA 123A',
-          make: 'Toyota',
-          model: 'Camry',
-          type: 'Saloon',
+          plate: data.vehicle?.registration || 'N/A',
+          make: data.vehicle?.make || '',
+          model: data.vehicle?.model || '',
         },
 
-        bay: 'Bay 1',
-        attendant: 'Peter Ochieng',
-        cashier: 'Mary Wanjiku',
+        bay: data.bay || 'N/A',
+        attendant: data.attendant || '',
+        cashier: data.cashier || 'System',
 
-        items: [
-          { name: 'Full Service Wash', quantity: 1, unitPrice: 1200, total: 1200 },
-          { name: 'Interior Vacuum', quantity: 1, unitPrice: 300, total: 300 },
-          { name: 'Dashboard Polish', quantity: 1, unitPrice: 200, total: 200 },
-        ],
+        items: services.map((s: any) => ({
+          name: s.name,
+          quantity: s.quantity || 1,
+          unitPrice: parseFloat(s.price || s.total || 0),
+          total: parseFloat(s.total || 0),
+        })),
 
-        subtotal: 1700,
-        discount: 170,
-        discountReason: 'Loyalty Discount (10%)',
-        taxRate: 16,
-        tax: 245,
-        total: 1775,
+        subtotal: data.subtotal || 0,
+        discount: data.discount || 0,
+        taxRate: data.tax_rate || 0,
+        tax: data.tax || 0,
+        total: data.total || 0,
 
-        payments: [
-          {
-            method: 'M-Pesa',
-            amount: 1775,
-            reference: 'QKH7J2K9LP',
-            date: '2024-02-18T15:28:00Z',
-          },
-        ],
+        payments: payments.map((p: any) => ({
+          method: (p.payment_method || '').replace('_', ' ').toUpperCase() || 'Cash',
+          amount: parseFloat(p.amount || 0),
+          reference: p.reference || undefined,
+          date: p.created_at || '',
+        })),
 
-        amountPaid: 1775,
-        change: 0,
-        balanceDue: 0,
+        amountPaid,
+        change: Math.max(0, amountPaid - (data.total || 0)),
+        balanceDue: Math.max(0, (data.total || 0) - amountPaid),
 
-        loyaltyPointsEarned: 17,
-        loyaltyPointsBalance: 1262,
-
-        footerMessage: 'Thank you for choosing Sparkle Car Wash! We appreciate your business. Drive clean, drive happy!',
+        footerMessage: data.footer || 'Thank you for your business!',
       });
-    } catch (error) {
-      console.error('Error fetching receipt:', error);
+    } catch (err: any) {
+      console.error('Error fetching receipt:', err);
+      setError(err?.error || 'Failed to load receipt');
     } finally {
       setIsLoading(false);
     }
@@ -194,9 +193,13 @@ export default function ReceiptPage() {
     }
   };
 
-  const handleSendSMS = () => {
-    // API call to send SMS would go here
-    alert('SMS sent successfully!');
+  const handleWhatsApp = async () => {
+    try {
+      const response = await receiptsApi.getWhatsAppLink(jobId);
+      window.open(response.data.whatsapp_url, '_blank');
+    } catch (err: any) {
+      toast.error(err?.error || 'Could not generate WhatsApp link. Customer may not have a phone number.');
+    }
   };
 
   if (isLoading) {
@@ -211,7 +214,7 @@ export default function ReceiptPage() {
     );
   }
 
-  if (!receipt) {
+  if (error || !receipt) {
     return (
       <MainLayout>
         <PageContainer>
@@ -219,7 +222,7 @@ export default function ReceiptPage() {
             <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold mb-2">Receipt Not Found</h2>
             <p className="text-muted-foreground mb-4">
-              The receipt you're looking for doesn't exist.
+              {error || "The receipt you're looking for doesn't exist."}
             </p>
             <Button onClick={() => router.push('/jobs')}>
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -256,12 +259,10 @@ export default function ReceiptPage() {
             <Share2 className="h-4 w-4 mr-2" />
             Share
           </Button>
-          {receipt.customer && (
-            <Button variant="outline" size="sm" onClick={handleSendSMS}>
-              <Send className="h-4 w-4 mr-2" />
-              Send SMS
-            </Button>
-          )}
+          <Button variant="outline" size="sm" onClick={handleWhatsApp}>
+            <MessageCircle className="h-4 w-4 mr-2" />
+            WhatsApp
+          </Button>
           <Button size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Print
@@ -297,7 +298,7 @@ export default function ReceiptPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Date:</span>
-                  <span>{formatDate(receipt.date, true)}</span>
+                  <span>{receipt.date}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Cashier:</span>
@@ -312,7 +313,7 @@ export default function ReceiptPage() {
                   <span className="font-mono font-bold">{receipt.vehicle.plate}</span>
                 </div>
                 <div className="text-sm text-gray-600">
-                  {receipt.vehicle.make} {receipt.vehicle.model} ({receipt.vehicle.type})
+                  {receipt.vehicle.make} {receipt.vehicle.model}
                 </div>
                 {receipt.customer && (
                   <div className="text-sm mt-1">
@@ -322,8 +323,13 @@ export default function ReceiptPage() {
                 )}
                 <div className="text-sm">
                   <span className="text-gray-600">Bay: </span>
-                  {receipt.bay} | <span className="text-gray-600">Attendant: </span>
-                  {receipt.attendant}
+                  {receipt.bay}
+                  {receipt.attendant && (
+                    <>
+                      {' | '}<span className="text-gray-600">Attendant: </span>
+                      {receipt.attendant}
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -368,10 +374,12 @@ export default function ReceiptPage() {
                     )}
                   </>
                 )}
-                <div className="flex justify-between text-sm">
-                  <span>VAT ({receipt.taxRate}%)</span>
-                  <span>KES {receipt.tax.toLocaleString()}</span>
-                </div>
+                {receipt.tax > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span>VAT ({receipt.taxRate}%)</span>
+                    <span>KES {receipt.tax.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-bold text-lg pt-2 border-t border-gray-200">
                   <span>TOTAL</span>
                   <span>KES {receipt.total.toLocaleString()}</span>
@@ -409,21 +417,6 @@ export default function ReceiptPage() {
                   </div>
                 )}
               </div>
-
-              {/* Loyalty Points */}
-              {receipt.loyaltyPointsEarned > 0 && (
-                <div className="border-t border-dashed border-gray-300 py-3 bg-yellow-50 -mx-6 px-6 my-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-yellow-600">★</span>
-                    <span>
-                      You earned <strong>{receipt.loyaltyPointsEarned}</strong> loyalty points!
-                    </span>
-                  </div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    New balance: {receipt.loyaltyPointsBalance.toLocaleString()} points
-                  </div>
-                </div>
-              )}
 
               {/* Barcode Placeholder */}
               <div className="text-center py-4">

@@ -13,8 +13,9 @@ export const generateReceipt = asyncHandler(async (req: AuthenticatedRequest, re
 
   // Get job details with all related data
   const jobResult = await db.query(
-    `SELECT 
+    `SELECT
       j.*,
+      j.job_no,
       c.name as customer_name,
       c.phone as customer_phone,
       c.email as customer_email,
@@ -22,12 +23,14 @@ export const generateReceipt = asyncHandler(async (req: AuthenticatedRequest, re
       v.make as vehicle_make,
       v.model as vehicle_model,
       b.name as bay_name,
-      u.name as cashier_name
+      u.name as cashier_name,
+      att.name as attendant_name
     FROM jobs j
     LEFT JOIN customers c ON j.customer_id = c.id
     LEFT JOIN vehicles v ON j.vehicle_id = v.id
     LEFT JOIN bays b ON j.bay_id = b.id
     LEFT JOIN users u ON j.created_by = u.id
+    LEFT JOIN users att ON j.assigned_staff_id = att.id
     WHERE j.id = $1`,
     [jobId]
   );
@@ -59,7 +62,7 @@ export const generateReceipt = asyncHandler(async (req: AuthenticatedRequest, re
     `SELECT 
       payment_method,
       amount,
-      reference,
+      reference_no AS reference,
       created_at
     FROM payments
     WHERE job_id = $1 AND status = 'completed'
@@ -69,9 +72,10 @@ export const generateReceipt = asyncHandler(async (req: AuthenticatedRequest, re
 
   // Get business settings
   const settingsResult = await db.query(
-    `SELECT key, value FROM system_settings 
-     WHERE key IN ('business_name', 'business_tagline', 'business_phone', 
-                   'business_email', 'business_address', 'tax_rate', 'currency')`
+    `SELECT key, value FROM system_settings
+     WHERE key IN ('business_name', 'business_tagline', 'business_phone',
+                   'business_email', 'business_address', 'tax_rate', 'currency',
+                   'receipt_footer')`
   );
 
   const settings: Record<string, string> = {};
@@ -81,6 +85,7 @@ export const generateReceipt = asyncHandler(async (req: AuthenticatedRequest, re
 
   const receipt = {
     receipt_no: `RCP-${String(job.id).padStart(6, '0')}`,
+    job_no: job.job_no || `JOB-${String(job.id).padStart(6, '0')}`,
     date: new Date(job.created_at).toLocaleString('en-KE', {
       year: 'numeric',
       month: '2-digit',
@@ -107,15 +112,17 @@ export const generateReceipt = asyncHandler(async (req: AuthenticatedRequest, re
       model: job.vehicle_model || '',
     },
     bay: job.bay_name || 'N/A',
+    attendant: job.attendant_name || '',
     cashier: job.cashier_name || 'System',
     services: servicesResult.rows,
-    subtotal: parseFloat(job.subtotal_amount || 0),
+    subtotal: parseFloat(job.total_amount || 0),
     discount: parseFloat(job.discount_amount || 0),
     tax: parseFloat(job.tax_amount || 0),
-    total: parseFloat(job.total_amount || 0),
+    total: parseFloat(job.final_amount || 0),
     payments: paymentsResult.rows,
     currency: settings.currency || 'KES',
     tax_rate: parseFloat(settings.tax_rate || '0'),
+    footer: settings.receipt_footer || 'Thank you for your business!',
   };
 
   if (format === 'text') {
@@ -207,7 +214,7 @@ function generateTextReceipt(receipt: any): string {
   
   lines.push('');
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  lines.push('Thank you for your business! 🚗✨');
+  lines.push(receipt.footer || 'Thank you for your business!');
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   
   return lines.join('\n');
@@ -226,12 +233,19 @@ export const getWhatsAppLink = asyncHandler(async (req: AuthenticatedRequest, re
   
   // Get job details
   const jobResult = await db.query(
-    `SELECT 
+    `SELECT
       j.*,
+      j.job_no,
       c.name as customer_name,
-      c.phone as customer_phone
+      c.phone as customer_phone,
+      v.registration_no as vehicle_reg,
+      v.make as vehicle_make,
+      v.model as vehicle_model,
+      u.name as cashier_name
     FROM jobs j
     LEFT JOIN customers c ON j.customer_id = c.id
+    LEFT JOIN vehicles v ON j.vehicle_id = v.id
+    LEFT JOIN users u ON j.created_by = u.id
     WHERE j.id = $1`,
     [jobId]
   );
@@ -269,7 +283,7 @@ export const getWhatsAppLink = asyncHandler(async (req: AuthenticatedRequest, re
     `SELECT 
       payment_method,
       amount,
-      reference
+      reference_no AS reference
     FROM payments
     WHERE job_id = $1 AND status = 'completed'
     ORDER BY created_at`,
@@ -278,9 +292,10 @@ export const getWhatsAppLink = asyncHandler(async (req: AuthenticatedRequest, re
 
   // Get business settings
   const settingsResult = await db.query(
-    `SELECT key, value FROM system_settings 
-     WHERE key IN ('business_name', 'business_tagline', 'business_phone', 
-                   'business_email', 'business_address', 'tax_rate', 'currency')`
+    `SELECT key, value FROM system_settings
+     WHERE key IN ('business_name', 'business_tagline', 'business_phone',
+                   'business_email', 'business_address', 'tax_rate', 'currency',
+                   'receipt_footer')`
   );
 
   const settings: Record<string, string> = {};
@@ -290,6 +305,7 @@ export const getWhatsAppLink = asyncHandler(async (req: AuthenticatedRequest, re
 
   const receipt = {
     receipt_no: `RCP-${String(job.id).padStart(6, '0')}`,
+    job_no: job.job_no || `JOB-${String(job.id).padStart(6, '0')}`,
     date: new Date(job.created_at).toLocaleString('en-KE', {
       year: 'numeric',
       month: '2-digit',
@@ -315,13 +331,14 @@ export const getWhatsAppLink = asyncHandler(async (req: AuthenticatedRequest, re
     },
     cashier: job.cashier_name || 'System',
     services: servicesResult.rows,
-    subtotal: parseFloat(job.subtotal_amount || 0),
+    subtotal: parseFloat(job.total_amount || 0),
     discount: parseFloat(job.discount_amount || 0),
     tax: parseFloat(job.tax_amount || 0),
-    total: parseFloat(job.total_amount || 0),
+    total: parseFloat(job.final_amount || 0),
     payments: paymentsResult.rows,
     currency: settings.currency || 'KES',
     tax_rate: parseFloat(settings.tax_rate || '0'),
+    footer: settings.receipt_footer || 'Thank you for your business!',
   };
 
   // Generate text receipt
