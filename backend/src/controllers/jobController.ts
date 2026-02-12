@@ -428,16 +428,23 @@ export const checkIn = asyncHandler(async (req: AuthenticatedRequest, res: Respo
     let totalAmount = 0;
 
     for (const service of services) {
-      // Get service price for vehicle type
-      const priceResult = await client.query(
-        `SELECT COALESCE(
-           (SELECT price FROM service_pricing WHERE service_id = $1 AND vehicle_type = $2),
-           (SELECT base_price FROM services WHERE id = $1)
-         ) as price`,
-        [service.service_id, vehicle_type]
-      );
+      let price: number;
 
-      const price = parseFloat(priceResult.rows[0].price);
+      if (service.price && service.price > 0) {
+        // Use price override (e.g. for variable-price services like carpet wash)
+        price = parseFloat(service.price);
+      } else {
+        // Get service price for vehicle type
+        const priceResult = await client.query(
+          `SELECT COALESCE(
+             (SELECT price FROM service_pricing WHERE service_id = $1 AND vehicle_type = $2),
+             (SELECT base_price FROM services WHERE id = $1)
+           ) as price`,
+          [service.service_id, vehicle_type]
+        );
+        price = parseFloat(priceResult.rows[0].price);
+      }
+
       const quantity = service.quantity || 1;
       const discount = service.discount || 0;
       const serviceTotal = (price * quantity) - discount;

@@ -75,6 +75,7 @@ export default function CheckInPage() {
   const [searchingVehicle, setSearchingVehicle] = React.useState(false);
   const [foundVehicle, setFoundVehicle] = React.useState<boolean | null>(null);
   const [selectedServices, setSelectedServices] = React.useState<Set<string>>(new Set());
+  const [customPrices, setCustomPrices] = React.useState<Record<string, number>>({});
 
   const {
     register,
@@ -169,9 +170,8 @@ export default function CheckInPage() {
     selectedServices.forEach((serviceId) => {
       const service = services.find((s) => String(s.id) === serviceId);
       if (service) {
-        const pricing = (service as any).pricing || (service as any).prices || [];
-        const priceInfo = pricing.find((p: { vehicle_type: string; price: number }) => p.vehicle_type === vehicleType);
-        total += priceInfo?.price || service.base_price || 0;
+        const price = getServicePrice(service);
+        total += price > 0 ? price : (customPrices[serviceId] || 0);
       }
     });
     return total;
@@ -196,6 +196,12 @@ export default function CheckInPage() {
     return priceInfo?.price || service.base_price || 0;
   };
 
+  // Check if service has variable pricing (no fixed price)
+  const isVariablePrice = (service: Service) => {
+    const price = getServicePrice(service);
+    return price === 0;
+  };
+
   // Submit form
   const onSubmit = async (data: CheckInFormData) => {
     try {
@@ -207,7 +213,11 @@ export default function CheckInPage() {
         vehicle_color: data.color,
         customer_name: data.customer_name,
         customer_phone: data.customer_phone,
-        services: data.services.map((id: string) => ({ service_id: Number(id), quantity: 1 })),
+        services: data.services.map((id: string) => ({
+          service_id: Number(id),
+          quantity: 1,
+          ...(customPrices[id] ? { price: customPrices[id] } : {}),
+        })),
         priority: data.priority as JobPriority,
         bay_id: data.bay_id,
         assigned_staff_id: data.assigned_staff_id,
@@ -386,36 +396,55 @@ export default function CheckInPage() {
                           const price = getServicePrice(service);
                           const isSelected = selectedServices.has(String(service.id));
 
+                          const hasVariablePrice = price === 0;
+                          const serviceIdStr = String(service.id);
+
                           return (
-                            <div
-                              key={String(service.id)}
-                              onClick={() => toggleService(String(service.id))}
-                              className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                                isSelected
-                                  ? 'border-primary bg-primary/5'
-                                  : 'border-border hover:border-primary/50'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className="flex items-center justify-center"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={() => toggleService(String(service.id))}
-                                  />
-                                </div>
-                                <div>
-                                  <div className="font-medium">{service.name}</div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {service.duration_minutes || 0} min
+                            <div key={serviceIdStr} className="space-y-2">
+                              <div
+                                onClick={() => toggleService(serviceIdStr)}
+                                className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                                  isSelected
+                                    ? 'border-primary bg-primary/5'
+                                    : 'border-border hover:border-primary/50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className="flex items-center justify-center"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={() => toggleService(serviceIdStr)}
+                                    />
+                                  </div>
+                                  <div>
+                                    <div className="font-medium">{service.name}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {service.duration_minutes || 0} min
+                                    </div>
                                   </div>
                                 </div>
+                                <div className="font-semibold">
+                                  {hasVariablePrice ? 'Custom' : formatCurrency(price)}
+                                </div>
                               </div>
-                              <div className="font-semibold">
-                                {formatCurrency(price)}
-                              </div>
+                              {isSelected && hasVariablePrice && (
+                                <div className="ml-10" onClick={(e) => e.stopPropagation()}>
+                                  <Input
+                                    type="number"
+                                    placeholder="Enter price (KES)"
+                                    value={customPrices[serviceIdStr] || ''}
+                                    onChange={(e) =>
+                                      setCustomPrices((prev) => ({
+                                        ...prev,
+                                        [serviceIdStr]: parseFloat(e.target.value) || 0,
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -565,6 +594,7 @@ export default function CheckInPage() {
                         const service = services.find((s) => String(s.id) === serviceId);
                         if (!service) return null;
                         const price = getServicePrice(service);
+                        const displayPrice = price > 0 ? price : (customPrices[serviceId] || 0);
 
                         return (
                           <div
@@ -572,7 +602,9 @@ export default function CheckInPage() {
                             className="flex items-center justify-between text-sm"
                           >
                             <span>{service.name}</span>
-                            <span className="font-medium">{formatCurrency(price)}</span>
+                            <span className="font-medium">
+                              {displayPrice > 0 ? formatCurrency(displayPrice) : 'Enter price'}
+                            </span>
                           </div>
                         );
                       })}
