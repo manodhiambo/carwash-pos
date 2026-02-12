@@ -77,9 +77,9 @@ export const createPayment = asyncHandler(async (req: AuthenticatedRequest, res:
       const commissionAmount = (totalAmount * job.commission_rate) / 100;
 
       await db.query(
-        `INSERT INTO commissions (job_id, staff_id, amount, status, created_at)
-         VALUES ($1, $2, $3, 'pending', CURRENT_TIMESTAMP)`,
-        [job_id, job.assigned_staff_id, commissionAmount]
+        `INSERT INTO commissions (job_id, staff_id, amount, commission_rate, base_amount, status, created_at)
+         VALUES ($1, $2, $3, $4, $5, 'pending', CURRENT_TIMESTAMP)`,
+        [job_id, job.assigned_staff_id, commissionAmount, job.commission_rate, totalAmount]
       );
     }
   }

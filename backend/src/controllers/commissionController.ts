@@ -237,10 +237,80 @@ export const markCommissionPaid = asyncHandler(async (req: AuthenticatedRequest,
   });
 });
 
+/**
+ * Pay all pending commissions for a specific staff member
+ * PUT /api/v1/commissions/staff/:staffId/pay-all
+ */
+export const payAllStaffCommissions = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { staffId } = req.params;
+  const { notes } = req.body;
+
+  const result = await db.query(
+    `UPDATE commissions
+     SET status = 'paid', paid_at = CURRENT_TIMESTAMP, notes = $2
+     WHERE staff_id = $1 AND status = 'pending'
+     RETURNING *`,
+    [staffId, notes || 'Bulk payment']
+  );
+
+  const totalAmount = result.rows.reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0);
+
+  res.json({
+    success: true,
+    message: `${result.rows.length} commissions marked as paid`,
+    data: {
+      count: result.rows.length,
+      total_amount: totalAmount,
+      commissions: result.rows,
+    },
+  });
+});
+
+/**
+ * Pay all pending commissions (evening closeout)
+ * PUT /api/v1/commissions/pay-daily
+ */
+export const payAllDailyCommissions = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { notes } = req.body;
+
+  const result = await db.query(
+    `UPDATE commissions
+     SET status = 'paid', paid_at = CURRENT_TIMESTAMP, notes = $1
+     WHERE status = 'pending'
+     RETURNING *`,
+    [notes || 'Evening closeout']
+  );
+
+  // Build breakdown by staff
+  const staffBreakdown: Record<string, { count: number; total: number }> = {};
+  for (const c of result.rows) {
+    const sid = c.staff_id;
+    if (!staffBreakdown[sid]) {
+      staffBreakdown[sid] = { count: 0, total: 0 };
+    }
+    staffBreakdown[sid].count++;
+    staffBreakdown[sid].total += parseFloat(c.amount);
+  }
+
+  const totalAmount = result.rows.reduce((sum: number, c: any) => sum + parseFloat(c.amount), 0);
+
+  res.json({
+    success: true,
+    message: `${result.rows.length} commissions paid out`,
+    data: {
+      count: result.rows.length,
+      total_amount: totalAmount,
+      staff_breakdown: staffBreakdown,
+    },
+  });
+});
+
 export default {
   calculateJobCommission,
   getStaffCommissions,
   getCommissionSummary,
   getAllCommissionSummaries,
   markCommissionPaid,
+  payAllStaffCommissions,
+  payAllDailyCommissions,
 };

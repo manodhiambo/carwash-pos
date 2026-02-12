@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Activity,
   Droplets,
+  CheckCircle,
 } from 'lucide-react';
 
 // Dashboard metrics type matching backend response
@@ -78,10 +79,12 @@ export default function DashboardPage() {
 
   // Get current user and commission summary
   const [userId, setUserId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     authApi.getCurrentUser().then((response) => {
       setUserId(response.data.id.toString());
+      setUserRole(response.data.role);
     });
   }, []);
 
@@ -92,6 +95,14 @@ export default function DashboardPage() {
   });
 
   const myCommissions = commissionSummary?.data;
+
+  const isAdminOrManager = userRole === 'admin' || userRole === 'manager';
+
+  const { data: allCommissionSummaries } = useQuery({
+    queryKey: ['all-commission-summaries'],
+    queryFn: () => commissionsApi.getAllSummaries(),
+    enabled: isAdminOrManager,
+  });
 
   const { data: alerts } = useQuery({
     queryKey: ['dashboard-alerts'],
@@ -188,6 +199,85 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {/* Commission Summary */}
+      {isAdminOrManager && allCommissionSummaries?.data && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-2 mb-8">
+          <Link href="/staff-commissions">
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Commissions</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {formatCurrency(
+                    (allCommissionSummaries.data as any[]).reduce(
+                      (sum: number, s: any) => sum + parseFloat(s.pending_commission || '0'),
+                      0
+                    )
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {(allCommissionSummaries.data as any[]).filter((s: any) => parseFloat(s.pending_commission || '0') > 0).length} staff with pending payouts
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/staff-commissions">
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Paid This Month</CardTitle>
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {formatCurrency(
+                    (allCommissionSummaries.data as any[]).reduce(
+                      (sum: number, s: any) => sum + parseFloat(s.paid_commission || '0'),
+                      0
+                    )
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">Total commissions paid out</p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+      )}
+
+      {!isAdminOrManager && myCommissions && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-2 mb-8">
+          <Link href="/my-commissions">
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">My Pending</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {formatCurrency(myCommissions.pending_commission || 0)}
+                </div>
+                <p className="text-xs text-muted-foreground">{myCommissions.total_jobs || 0} jobs this month</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/my-commissions">
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">My Paid</CardTitle>
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {formatCurrency(myCommissions.paid_commission || 0)}
+                </div>
+                <p className="text-xs text-muted-foreground">Commissions received</p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+      )}
 
       {/* Alerts */}
       {alertsList.length > 0 && (

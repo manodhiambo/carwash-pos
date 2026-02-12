@@ -20,6 +20,12 @@ router.get('/summary/:staffId', commissionController.getCommissionSummary);
 // Get all staff summaries
 router.get('/summaries', isAdmin, commissionController.getAllCommissionSummaries);
 
+// Bulk pay all pending commissions (evening closeout) — must be BEFORE /:id/pay
+router.put('/pay-daily', isAdmin, commissionController.payAllDailyCommissions);
+
+// Pay all pending commissions for a specific staff member
+router.put('/staff/:staffId/pay-all', isAdmin, commissionController.payAllStaffCommissions);
+
 // Mark as paid
 router.put('/:id/pay', isAdmin, commissionController.markCommissionPaid);
 

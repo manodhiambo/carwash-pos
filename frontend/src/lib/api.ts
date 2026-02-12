@@ -1828,6 +1828,24 @@ export const commissionsApi = {
       throw handleApiError(error as AxiosError<ApiError>);
     }
   },
+
+  payAllForStaff: async (staffId: string, notes?: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put<ApiResponse<any>>(`/commissions/staff/${staffId}/pay-all`, { notes });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  payDaily: async (notes?: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.put<ApiResponse<any>>('/commissions/pay-daily', { notes });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
 };
 
 // Export the API client for custom requests

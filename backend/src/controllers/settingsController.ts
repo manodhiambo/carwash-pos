@@ -210,6 +210,12 @@ export const initializeSettings = asyncHandler(async (req: AuthenticatedRequest,
     // Payment Settings
     { key: 'mpesa_paybill', value: '522533', category: 'payments' },
     { key: 'mpesa_account', value: '7791821', category: 'payments' },
+
+    // Commission Settings
+    { key: 'commission_rate_attendant', value: '10', category: 'commission' },
+    { key: 'commission_rate_cashier', value: '5', category: 'commission' },
+    { key: 'commission_rate_supervisor', value: '0', category: 'commission' },
+    { key: 'commission_rate_manager', value: '0', category: 'commission' },
   ];
 
   const client = await db.pool.connect();

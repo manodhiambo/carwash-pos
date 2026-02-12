@@ -76,14 +76,22 @@ export default function SettingsPage() {
     setFormData(prev => ({ ...prev, [key]: value }));
   };
 
+  // Static fallback map for keys that may not yet exist in the backend
+  const categoryFallbacks: Record<string, string> = {
+    commission_rate_attendant: 'commission',
+    commission_rate_cashier: 'commission',
+    commission_rate_supervisor: 'commission',
+    commission_rate_manager: 'commission',
+  };
+
   const handleSave = () => {
     const data = settingsResponse as any;
     const grouped = data?.grouped || {};
-    
+
     const updates = Object.keys(formData).map(key => {
-      let category = 'general';
-      
-      // Find the category for this key
+      let category = categoryFallbacks[key] || 'general';
+
+      // Find the category for this key from existing grouped data
       Object.keys(grouped).forEach(cat => {
         if (grouped[cat] && grouped[cat][key] !== undefined) {
           category = cat;
@@ -128,6 +136,7 @@ export default function SettingsPage() {
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="receipts">Receipts</TabsTrigger>
           <TabsTrigger value="loyalty">Loyalty</TabsTrigger>
+          <TabsTrigger value="commission">Commission</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -406,6 +415,65 @@ export default function SettingsPage() {
                     onChange={(e) => handleChange('points_expiry_days', e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground mt-1">0 = never expire</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="commission">
+          <Card>
+            <CardHeader>
+              <CardTitle>Default Commission Rates</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Set default commission rates by role. Individual staff rates can be overridden in Staff Management.
+              </p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label>Attendant Rate (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.commission_rate_attendant || '10'}
+                    onChange={(e) => handleChange('commission_rate_attendant', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Applied to attendants by default</p>
+                </div>
+                <div>
+                  <Label>Cashier Rate (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.commission_rate_cashier || '5'}
+                    onChange={(e) => handleChange('commission_rate_cashier', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Applied to cashiers by default</p>
+                </div>
+                <div>
+                  <Label>Supervisor Rate (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.commission_rate_supervisor || '0'}
+                    onChange={(e) => handleChange('commission_rate_supervisor', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Applied to supervisors by default</p>
+                </div>
+                <div>
+                  <Label>Manager Rate (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.commission_rate_manager || '0'}
+                    onChange={(e) => handleChange('commission_rate_manager', e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Applied to managers by default</p>
                 </div>
               </div>
             </CardContent>
