@@ -90,7 +90,7 @@ const navItems: NavItem[] = [
     title: 'Staff',
     href: '/staff',
     icon: UserCog,
-    roles: ['admin', 'manager'],
+    roles: ['super_admin', 'admin', 'manager'],
   },
   {
     title: 'Staff Commissions',
@@ -108,25 +108,25 @@ const navItems: NavItem[] = [
     title: 'Expenses',
     href: '/expenses',
     icon: Wallet,
-    roles: ['admin', 'manager', 'cashier'],
+    roles: ['super_admin', 'admin', 'manager', 'cashier'],
   },
   {
     title: 'Reports',
     href: '/reports',
     icon: BarChart3,
-    roles: ['admin', 'manager'],
+    roles: ['super_admin', 'admin', 'manager'],
   },
   {
     title: 'Activity Logs',
     href: '/activity-logs',
     icon: History,
-    roles: ['admin'],
+    roles: ['super_admin', 'admin'],
   },
   {
     title: 'Settings',
     href: '/settings',
     icon: Settings,
-    roles: ['admin', 'manager'],
+    roles: ['super_admin', 'admin', 'manager'],
   },
 ];
 

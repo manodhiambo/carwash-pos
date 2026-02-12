@@ -4,27 +4,43 @@ import { AuthenticatedRequest } from '../types';
 import { asyncHandler } from '../middleware/errorHandler';
 
 /**
+ * Derive category from setting key prefix
+ */
+function getCategoryFromKey(key: string): string {
+  if (key.startsWith('business_')) return 'business';
+  if (key === 'currency' || key === 'timezone') return 'business';
+  if (key === 'opening_time' || key === 'closing_time') return 'hours';
+  if (key.startsWith('tax_')) return 'pricing';
+  if (key === 'auto_assign_bay' || key === 'require_customer_info' || key === 'allow_walkins') return 'jobs';
+  if (key.startsWith('loyalty_') || key.startsWith('points_')) return 'loyalty';
+  if (key.startsWith('receipt_')) return 'receipt';
+  if (key.startsWith('mpesa_')) return 'payments';
+  if (key.startsWith('commission_')) return 'commission';
+  return 'general';
+}
+
+/**
  * Get all system settings
  * GET /api/v1/settings
  */
 export const getAllSettings = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { category } = req.query;
 
-  let query = 'SELECT * FROM system_settings';
-  const params: any[] = [];
+  const result = await db.query('SELECT * FROM system_settings ORDER BY key');
 
-  if (category) {
-    query += ' WHERE category = $1';
-    params.push(category);
-  }
+  // Derive category for each row and filter if requested
+  const rows = result.rows.map((row: any) => ({
+    ...row,
+    category: getCategoryFromKey(row.key),
+  }));
 
-  query += ' ORDER BY category, key';
-
-  const result = await db.query(query, params);
+  const filtered = category
+    ? rows.filter((row: any) => row.category === category)
+    : rows;
 
   // Group settings by category
   const grouped: Record<string, any> = {};
-  result.rows.forEach(row => {
+  filtered.forEach((row: any) => {
     if (!grouped[row.category]) {
       grouped[row.category] = {};
     }
@@ -34,7 +50,7 @@ export const getAllSettings = asyncHandler(async (req: AuthenticatedRequest, res
   res.json({
     success: true,
     data: {
-      settings: result.rows,
+      settings: filtered,
       grouped,
     },
   });
@@ -98,7 +114,7 @@ export const updateSetting = asyncHandler(async (req: AuthenticatedRequest, res:
 
   // Update setting
   const result = await db.query(
-    `UPDATE system_settings 
+    `UPDATE system_settings
      SET value = $1, updated_at = CURRENT_TIMESTAMP
      WHERE key = $2
      RETURNING *`,
@@ -140,12 +156,12 @@ export const updateBulkSettings = asyncHandler(async (req: AuthenticatedRequest,
       }
 
       const result = await client.query(
-        `INSERT INTO system_settings (key, value, category, updated_at)
-         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-         ON CONFLICT (key) 
+        `INSERT INTO system_settings (key, value, updated_at)
+         VALUES ($1, $2, CURRENT_TIMESTAMP)
+         ON CONFLICT (key)
          DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP
          RETURNING *`,
-        [setting.key, setting.value, setting.category || 'general']
+        [setting.key, setting.value]
       );
 
       updated.push(result.rows[0]);
@@ -173,49 +189,49 @@ export const updateBulkSettings = asyncHandler(async (req: AuthenticatedRequest,
 export const initializeSettings = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const defaultSettings = [
     // Business Information
-    { key: 'business_name', value: 'Splash & Shine CarWash', category: 'business' },
-    { key: 'business_tagline', value: 'Where Every Car Shines', category: 'business' },
-    { key: 'business_phone', value: '0756941144', category: 'business' },
-    { key: 'business_email', value: 'info@splashshine.co.ke', category: 'business' },
-    { key: 'business_address', value: 'Oginga Odinga Street, Behind Rubis Filling Station, Siaya Town', category: 'business' },
-    { key: 'business_website', value: 'https://splashshine.org', category: 'business' },
-    { key: 'currency', value: 'KES', category: 'business' },
-    { key: 'timezone', value: 'Africa/Nairobi', category: 'business' },
-    
+    { key: 'business_name', value: 'Splash & Shine CarWash' },
+    { key: 'business_tagline', value: 'Where Every Car Shines' },
+    { key: 'business_phone', value: '0756941144' },
+    { key: 'business_email', value: 'info@splashshine.co.ke' },
+    { key: 'business_address', value: 'Oginga Odinga Street, Behind Rubis Filling Station, Siaya Town' },
+    { key: 'business_website', value: 'https://splashshine.org' },
+    { key: 'currency', value: 'KES' },
+    { key: 'timezone', value: 'Africa/Nairobi' },
+
     // Operating Hours
-    { key: 'opening_time', value: '08:00', category: 'hours' },
-    { key: 'closing_time', value: '18:00', category: 'hours' },
-    
+    { key: 'opening_time', value: '08:00' },
+    { key: 'closing_time', value: '18:00' },
+
     // Tax & Pricing
-    { key: 'tax_rate', value: '16', category: 'pricing' },
-    { key: 'tax_enabled', value: 'true', category: 'pricing' },
-    
+    { key: 'tax_rate', value: '16' },
+    { key: 'tax_enabled', value: 'true' },
+
     // Job Settings
-    { key: 'auto_assign_bay', value: 'true', category: 'jobs' },
-    { key: 'require_customer_info', value: 'false', category: 'jobs' },
-    { key: 'allow_walkins', value: 'true', category: 'jobs' },
-    
+    { key: 'auto_assign_bay', value: 'true' },
+    { key: 'require_customer_info', value: 'false' },
+    { key: 'allow_walkins', value: 'true' },
+
     // Loyalty Program
-    { key: 'loyalty_enabled', value: 'true', category: 'loyalty' },
-    { key: 'points_per_currency', value: '1', category: 'loyalty' },
-    { key: 'points_value', value: '1', category: 'loyalty' },
-    { key: 'points_expiry_days', value: '365', category: 'loyalty' },
-    
+    { key: 'loyalty_enabled', value: 'true' },
+    { key: 'points_per_currency', value: '1' },
+    { key: 'points_value', value: '1' },
+    { key: 'points_expiry_days', value: '365' },
+
     // Receipt Settings
-    { key: 'receipt_auto_print', value: 'false', category: 'receipt' },
-    { key: 'receipt_show_logo', value: 'true', category: 'receipt' },
-    { key: 'receipt_show_barcode', value: 'true', category: 'receipt' },
-    { key: 'receipt_footer', value: 'Thank you for choosing us! Drive clean!', category: 'receipt' },
-    
+    { key: 'receipt_auto_print', value: 'false' },
+    { key: 'receipt_show_logo', value: 'true' },
+    { key: 'receipt_show_barcode', value: 'true' },
+    { key: 'receipt_footer', value: 'Thank you for choosing us! Drive clean!' },
+
     // Payment Settings
-    { key: 'mpesa_paybill', value: '522533', category: 'payments' },
-    { key: 'mpesa_account', value: '7791821', category: 'payments' },
+    { key: 'mpesa_paybill', value: '522533' },
+    { key: 'mpesa_account', value: '7791821' },
 
     // Commission Settings
-    { key: 'commission_rate_attendant', value: '10', category: 'commission' },
-    { key: 'commission_rate_cashier', value: '5', category: 'commission' },
-    { key: 'commission_rate_supervisor', value: '0', category: 'commission' },
-    { key: 'commission_rate_manager', value: '0', category: 'commission' },
+    { key: 'commission_rate_attendant', value: '10' },
+    { key: 'commission_rate_cashier', value: '5' },
+    { key: 'commission_rate_supervisor', value: '0' },
+    { key: 'commission_rate_manager', value: '0' },
   ];
 
   const client = await db.pool.connect();
@@ -227,11 +243,11 @@ export const initializeSettings = asyncHandler(async (req: AuthenticatedRequest,
 
     for (const setting of defaultSettings) {
       const result = await client.query(
-        `INSERT INTO system_settings (key, value, category)
-         VALUES ($1, $2, $3)
+        `INSERT INTO system_settings (key, value)
+         VALUES ($1, $2)
          ON CONFLICT (key) DO NOTHING
          RETURNING *`,
-        [setting.key, setting.value, setting.category]
+        [setting.key, setting.value]
       );
 
       if (result.rows.length > 0) {
