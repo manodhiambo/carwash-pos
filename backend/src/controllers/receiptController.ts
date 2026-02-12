@@ -29,7 +29,7 @@ export const generateReceipt = asyncHandler(async (req: AuthenticatedRequest, re
     LEFT JOIN customers c ON j.customer_id = c.id
     LEFT JOIN vehicles v ON j.vehicle_id = v.id
     LEFT JOIN bays b ON j.bay_id = b.id
-    LEFT JOIN users u ON j.created_by = u.id
+    LEFT JOIN users u ON j.checked_in_by = u.id
     LEFT JOIN users att ON j.assigned_staff_id = att.id
     WHERE j.id = $1`,
     [jobId]
@@ -245,7 +245,7 @@ export const getWhatsAppLink = asyncHandler(async (req: AuthenticatedRequest, re
     FROM jobs j
     LEFT JOIN customers c ON j.customer_id = c.id
     LEFT JOIN vehicles v ON j.vehicle_id = v.id
-    LEFT JOIN users u ON j.created_by = u.id
+    LEFT JOIN users u ON j.checked_in_by = u.id
     WHERE j.id = $1`,
     [jobId]
   );
