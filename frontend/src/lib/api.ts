@@ -1089,11 +1089,29 @@ export const equipmentApi = {
 // Inventory API
 // ============================================
 
+function transformInventoryItem(raw: any): InventoryItem {
+  const quantity = parseFloat(raw.current_stock ?? raw.quantity ?? 0);
+  const reorderLevel = parseFloat(raw.min_stock_level ?? raw.reorder_level ?? 0);
+  return {
+    ...raw,
+    current_stock: quantity,
+    min_stock_level: reorderLevel,
+    max_stock_level: parseFloat(raw.max_stock_level ?? 0) || Math.max(reorderLevel * 5, 100),
+    reorder_point: reorderLevel,
+    unit_cost: parseFloat(raw.unit_cost) || 0,
+    supplier: raw.supplier || (raw.supplier_name ? { id: raw.supplier_id, name: raw.supplier_name } : null),
+  };
+}
+
 export const inventoryApi = {
   getAll: async (params?: PaginationParams & { category?: string; low_stock?: boolean }): Promise<PaginatedResponse<InventoryItem>> => {
     try {
       const response = await apiClient.get<PaginatedResponse<InventoryItem>>('/inventory', { params });
-      return response.data;
+      const data = response.data;
+      return {
+        ...data,
+        data: (data.data || []).map(transformInventoryItem),
+      };
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
     }
@@ -1102,7 +1120,11 @@ export const inventoryApi = {
   getById: async (id: string): Promise<ApiResponse<InventoryItem>> => {
     try {
       const response = await apiClient.get<ApiResponse<InventoryItem>>(`/inventory/${id}`);
-      return response.data;
+      const data = response.data;
+      return {
+        ...data,
+        data: transformInventoryItem(data.data),
+      };
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
     }
@@ -1192,7 +1214,11 @@ export const inventoryApi = {
   getLowStock: async (): Promise<ApiResponse<InventoryItem[]>> => {
     try {
       const response = await apiClient.get<ApiResponse<InventoryItem[]>>('/inventory/low-stock');
-      return response.data;
+      const data = response.data;
+      return {
+        ...data,
+        data: (data.data || []).map(transformInventoryItem),
+      };
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);
     }
