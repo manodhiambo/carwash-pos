@@ -14,6 +14,52 @@ import {
 import { transaction } from '../config/database';
 
 /**
+ * Create commission record for a job's assigned staff.
+ * Uses staff's commission_rate, falling back to system settings by role.
+ */
+async function createCommissionForJob(jobId: number, staffId: number, commissionRate: number): Promise<void> {
+  const jobResult = await db.query(`SELECT final_amount FROM jobs WHERE id = $1`, [jobId]);
+  if (jobResult.rows.length === 0) return;
+
+  const baseAmount = parseFloat(jobResult.rows[0].final_amount || 0);
+  if (baseAmount <= 0 || commissionRate <= 0) return;
+
+  const commissionAmount = (baseAmount * commissionRate) / 100;
+
+  // Check if commission already exists for this job
+  const existing = await db.query(`SELECT id FROM commissions WHERE job_id = $1`, [jobId]);
+  if (existing.rows.length > 0) return;
+
+  await db.query(
+    `INSERT INTO commissions (job_id, staff_id, amount, commission_rate, base_amount, status, created_at)
+     VALUES ($1, $2, $3, $4, $5, 'pending', CURRENT_TIMESTAMP)`,
+    [jobId, staffId, commissionAmount, commissionRate, baseAmount]
+  );
+}
+
+/**
+ * Get the effective commission rate for a staff member,
+ * falling back to system settings if the user's rate is 0.
+ */
+async function getEffectiveCommissionRate(staffId: number): Promise<number> {
+  const staffResult = await db.query(`SELECT role, commission_rate FROM users WHERE id = $1`, [staffId]);
+  if (staffResult.rows.length === 0) return 0;
+
+  const staff = staffResult.rows[0];
+  let rate = parseFloat(staff.commission_rate || 0);
+
+  if (rate <= 0) {
+    const settingKey = `commission_rate_${staff.role}`;
+    const settingResult = await db.query(`SELECT value FROM system_settings WHERE key = $1`, [settingKey]);
+    if (settingResult.rows.length > 0) {
+      rate = parseFloat(settingResult.rows[0].value || 0);
+    }
+  }
+
+  return rate;
+}
+
+/**
  * Get all jobs with filters and pagination
  * GET /api/v1/jobs
  */
@@ -557,6 +603,18 @@ export const updateStatus = asyncHandler(async (req: AuthenticatedRequest, res: 
     }
   });
 
+  // Auto-create commission when job is completed and has assigned staff
+  if (status === JOB_STATUS.COMPLETED && job.assigned_staff_id) {
+    try {
+      const rate = await getEffectiveCommissionRate(job.assigned_staff_id);
+      if (rate > 0) {
+        await createCommissionForJob(parseInt(id, 10), job.assigned_staff_id, rate);
+      }
+    } catch (err) {
+      console.error('Failed to auto-create commission:', err);
+    }
+  }
+
   // Get updated job
   const updatedJob = await db.query(
     `SELECT j.*, v.registration_no, v.vehicle_type
@@ -674,7 +732,7 @@ export const assignStaff = asyncHandler(async (req: AuthenticatedRequest, res: R
 
   // Check staff exists and get commission rate
   const staff = await db.query(
-    `SELECT id, name, commission_rate FROM users WHERE id = $1 AND role IN ('attendant', 'manager') AND status = 'active'`,
+    `SELECT id, name, role, commission_rate FROM users WHERE id = $1 AND role IN ('attendant', 'manager') AND status = 'active'`,
     [staff_id]
   );
 
@@ -693,23 +751,16 @@ export const assignStaff = asyncHandler(async (req: AuthenticatedRequest, res: R
     [staff_id, id]
   );
 
-  // If job is already completed/paid, calculate commission immediately
+  // Create commission if job is already completed/paid
   const jobData = job.rows[0];
-  if ((jobData.status === 'completed' || jobData.status === 'paid') && staff.rows[0].commission_rate > 0) {
-    const commissionAmount = (parseFloat(jobData.final_amount) * staff.rows[0].commission_rate) / 100;
-
-    // Check if commission already exists
-    const existingCommission = await db.query(
-      `SELECT id FROM commissions WHERE job_id = $1`,
-      [id]
-    );
-
-    if (existingCommission.rows.length === 0) {
-      await db.query(
-        `INSERT INTO commissions (job_id, staff_id, amount, status, created_at)
-         VALUES ($1, $2, $3, 'pending', CURRENT_TIMESTAMP)`,
-        [id, staff_id, commissionAmount]
-      );
+  if (jobData.status === 'completed' || jobData.status === 'paid') {
+    try {
+      const commissionRate = await getEffectiveCommissionRate(parseInt(staff_id, 10));
+      if (commissionRate > 0) {
+        await createCommissionForJob(parseInt(id, 10), parseInt(staff_id, 10), commissionRate);
+      }
+    } catch (err) {
+      console.error('Failed to create commission on staff assign:', err);
     }
   }
 

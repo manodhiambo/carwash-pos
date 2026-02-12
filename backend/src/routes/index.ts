@@ -13,6 +13,7 @@ import reportRoutes from './reportRoutes';
 import subscriptionRoutes from './subscriptionRoutes';
 import commissionRoutes from './commissionRoutes';
 import settingsRoutes from './settingsRoutes';
+import activityLogRoutes from './activityLogRoutes';
 import receiptService from '../services/receiptService';
 import db from '../config/database';
 
@@ -75,6 +76,7 @@ router.use('/reports', reportRoutes);
 router.use('/subscriptions', subscriptionRoutes);
 router.use('/commissions', commissionRoutes);
 router.use('/settings', settingsRoutes);
+router.use('/activity-logs', activityLogRoutes);
 
 // Receipt generation endpoint
 router.get('/receipts/:jobId', async (req, res) => {
