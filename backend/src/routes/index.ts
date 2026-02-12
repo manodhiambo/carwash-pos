@@ -14,7 +14,7 @@ import subscriptionRoutes from './subscriptionRoutes';
 import commissionRoutes from './commissionRoutes';
 import settingsRoutes from './settingsRoutes';
 import activityLogRoutes from './activityLogRoutes';
-import receiptService from '../services/receiptService';
+import receiptRoutes from './receiptRoutes';
 import db from '../config/database';
 
 const router = Router();
@@ -77,98 +77,6 @@ router.use('/subscriptions', subscriptionRoutes);
 router.use('/commissions', commissionRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/activity-logs', activityLogRoutes);
-
-// Receipt generation endpoint
-router.get('/receipts/:jobId', async (req, res) => {
-  try {
-    const { jobId } = req.params;
-    const { format = 'json' } = req.query;
-
-    // Get job data
-    const jobResult = await db.query(
-      `SELECT j.*, v.registration_no, v.vehicle_type,
-              c.name as customer_name, c.phone as customer_phone,
-              u.name as cashier_name, b.name as branch_name
-       FROM jobs j
-       JOIN vehicles v ON j.vehicle_id = v.id
-       LEFT JOIN customers c ON j.customer_id = c.id
-       LEFT JOIN users u ON j.checked_in_by = u.id
-       LEFT JOIN branches b ON j.branch_id = b.id
-       WHERE j.id = $1`,
-      [jobId]
-    );
-
-    if (jobResult.rows.length === 0) {
-      res.status(404).json({ success: false, error: 'Job not found' });
-      return;
-    }
-
-    const job = jobResult.rows[0];
-
-    // Get services
-    const servicesResult = await db.query<{
-      name: string;
-      quantity: number;
-      price: number;
-      total: number;
-    }>(
-      `SELECT s.name, js.quantity, js.price, js.total
-       FROM job_services js
-       JOIN services s ON js.service_id = s.id
-       WHERE js.job_id = $1`,
-      [jobId]
-    );
-
-    // Get payments
-    const paymentsResult = await db.query(
-      `SELECT payment_method, amount, reference_no, mpesa_receipt
-       FROM payments
-       WHERE job_id = $1 AND status = 'completed'`,
-      [jobId]
-    );
-
-    const receiptData = {
-      jobNo: job.job_no,
-      date: job.created_at,
-      vehicle: {
-        registration: job.registration_no,
-        type: job.vehicle_type,
-      },
-      customer: job.customer_name
-        ? { name: job.customer_name, phone: job.customer_phone }
-        : undefined,
-      services: servicesResult.rows,
-      subtotal: parseFloat(job.total_amount),
-      discount: parseFloat(job.discount_amount),
-      tax: parseFloat(job.tax_amount),
-      total: parseFloat(job.final_amount),
-      payments: paymentsResult.rows.map(p => ({
-        method: p.payment_method,
-        amount: parseFloat(p.amount),
-        reference: p.mpesa_receipt || p.reference_no,
-      })),
-      cashier: job.cashier_name,
-      branch: job.branch_name,
-    };
-
-    if (format === 'html') {
-      const html = await receiptService.generateReceiptHTML(receiptData);
-      res.setHeader('Content-Type', 'text/html');
-      res.send(html);
-    } else if (format === 'text') {
-      const text = await receiptService.generateReceipt(receiptData);
-      res.setHeader('Content-Type', 'text/plain');
-      res.send(text);
-    } else {
-      res.json({
-        success: true,
-        data: receiptService.generateReceiptJSON(receiptData),
-      });
-    }
-  } catch (error) {
-    console.error('Receipt generation error:', error);
-    res.status(500).json({ success: false, error: 'Failed to generate receipt' });
-  }
-});
+router.use('/receipts', receiptRoutes);
 
 export default router;
