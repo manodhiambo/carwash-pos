@@ -63,7 +63,13 @@ export const getItems = asyncHandler(async (req: AuthenticatedRequest, res: Resp
   const { offset, limit: validLimit } = buildPaginationClause(Number(page), Number(limit));
 
   const result = await db.query(
-    `SELECT i.*, s.name as supplier_name, b.name as branch_name,
+    `SELECT i.*,
+            i.quantity as current_stock,
+            i.reorder_level as min_stock_level,
+            i.reorder_level as reorder_point,
+            GREATEST(i.reorder_level * 5, 100) as max_stock_level,
+            s.name as supplier_name,
+            b.name as branch_name,
             CASE WHEN i.quantity <= i.reorder_level THEN true ELSE false END as is_low_stock
      FROM inventory_items i
      LEFT JOIN suppliers s ON i.supplier_id = s.id
@@ -76,9 +82,14 @@ export const getItems = asyncHandler(async (req: AuthenticatedRequest, res: Resp
     [...params, validLimit, offset]
   );
 
+  const items = result.rows.map((row: any) => ({
+    ...row,
+    supplier: row.supplier_name ? { id: row.supplier_id, name: row.supplier_name } : null,
+  }));
+
   res.json({
     success: true,
-    data: result.rows,
+    data: items,
     pagination: calculatePagination(total, Number(page), validLimit),
   });
 });
@@ -91,7 +102,13 @@ export const getItem = asyncHandler(async (req: AuthenticatedRequest, res: Respo
   const { id } = req.params;
 
   const result = await db.query(
-    `SELECT i.*, s.name as supplier_name, s.phone as supplier_phone
+    `SELECT i.*,
+            i.quantity as current_stock,
+            i.reorder_level as min_stock_level,
+            i.reorder_level as reorder_point,
+            GREATEST(i.reorder_level * 5, 100) as max_stock_level,
+            s.name as supplier_name,
+            s.phone as supplier_phone
      FROM inventory_items i
      LEFT JOIN suppliers s ON i.supplier_id = s.id
      WHERE i.id = $1`,
@@ -117,10 +134,12 @@ export const getItem = asyncHandler(async (req: AuthenticatedRequest, res: Respo
     [id]
   );
 
+  const row = result.rows[0];
   res.json({
     success: true,
     data: {
-      ...result.rows[0],
+      ...row,
+      supplier: row.supplier_name ? { id: row.supplier_id, name: row.supplier_name, phone: row.supplier_phone } : null,
       recent_transactions: transactionsResult.rows,
     },
   });
@@ -137,11 +156,17 @@ export const createItem = asyncHandler(async (req: AuthenticatedRequest, res: Re
     category,
     sku,
     unit,
-    quantity = 0,
-    reorder_level = 10,
+    quantity: rawQuantity,
+    current_stock,
+    reorder_level: rawReorderLevel,
+    reorder_point,
+    min_stock_level,
     unit_cost = 0,
     supplier_id,
   } = req.body;
+
+  const quantity = rawQuantity ?? current_stock ?? 0;
+  const reorder_level = rawReorderLevel ?? reorder_point ?? min_stock_level ?? 10;
 
   const branchId = req.user?.branch_id || 1;
 
@@ -189,7 +214,8 @@ export const createItem = asyncHandler(async (req: AuthenticatedRequest, res: Re
  */
 export const updateItem = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const { name, description, category, sku, unit, reorder_level, unit_cost, supplier_id, is_active } = req.body;
+  const { name, description, category, sku, unit, reorder_level: rawReorderLevel, reorder_point, min_stock_level, unit_cost, supplier_id, is_active } = req.body;
+  const reorder_level = rawReorderLevel ?? reorder_point ?? min_stock_level;
 
   const existing = await db.query(`SELECT * FROM inventory_items WHERE id = $1`, [id]);
   if (existing.rows.length === 0) {
@@ -329,7 +355,13 @@ export const getLowStockItems = asyncHandler(async (req: AuthenticatedRequest, r
   const branchId = req.user?.branch_id;
 
   const result = await db.query(
-    `SELECT i.*, s.name as supplier_name, s.phone as supplier_phone
+    `SELECT i.*,
+            i.quantity as current_stock,
+            i.reorder_level as min_stock_level,
+            i.reorder_level as reorder_point,
+            GREATEST(i.reorder_level * 5, 100) as max_stock_level,
+            s.name as supplier_name,
+            s.phone as supplier_phone
      FROM inventory_items i
      LEFT JOIN suppliers s ON i.supplier_id = s.id
      WHERE i.quantity <= i.reorder_level
@@ -339,9 +371,14 @@ export const getLowStockItems = asyncHandler(async (req: AuthenticatedRequest, r
     branchId ? [branchId] : []
   );
 
+  const items = result.rows.map((row: any) => ({
+    ...row,
+    supplier: row.supplier_name ? { id: row.supplier_id, name: row.supplier_name, phone: row.supplier_phone } : null,
+  }));
+
   res.json({
     success: true,
-    data: result.rows,
+    data: items,
   });
 });
 
