@@ -1211,6 +1211,32 @@ export const inventoryApi = {
     }
   },
 
+  
+  recordSale: async (itemId: string, quantity: number, sellingPrice?: number, customerId?: string, paymentMethod?: string, notes?: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.post('/inventory/sale', {
+        item_id: itemId,
+        quantity,
+        selling_price: sellingPrice,
+        customer_id: customerId,
+        payment_method: paymentMethod,
+        notes,
+      });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
+  getSalesReport: async (params?: { start_date?: string; end_date?: string; item_id?: string; branch_id?: string }): Promise<ApiResponse<any>> => {
+    try {
+      const response = await apiClient.get('/inventory/sales-report', { params });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError<ApiError>);
+    }
+  },
+
   getLowStock: async (): Promise<ApiResponse<InventoryItem[]>> => {
     try {
       const response = await apiClient.get<ApiResponse<InventoryItem[]>>('/inventory/low-stock');

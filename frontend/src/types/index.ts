@@ -723,3 +723,46 @@ export interface ReceiptData {
   payment?: Payment;
   qr_code?: string;
 }
+
+// ============================================
+// Inventory Sales Types
+// ============================================
+
+export interface InventorySale {
+  id: string;
+  item_id: string;
+  item_name: string;
+  quantity: number;
+  selling_price: number;
+  total_amount: number;
+  profit: number;
+  customer_id?: string;
+  customer_name?: string;
+  payment_method?: string;
+  performed_by: string;
+  performed_by_name: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface InventorySalesReport {
+  summary: {
+    total_sales: number;
+    total_quantity_sold: number;
+    total_revenue: number;
+    total_cost: number;
+    total_profit: number;
+  };
+  items: {
+    id: string;
+    name: string;
+    category: string;
+    unit: string;
+    sales_count: number;
+    quantity_sold: number;
+    avg_selling_price: number;
+    revenue: number;
+    cost: number;
+    profit: number;
+  }[];
+}

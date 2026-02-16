@@ -308,6 +308,12 @@ export const jobValidators = {
       .optional()
       .trim()
       .isLength({ max: 500 }),
+    body('selling_price')
+      .optional()
+      .isFloat({ min: 0 }),
+    body('customer_id')
+      .optional()
+      .isInt({ min: 1 }),
     body('damage_notes')
       .optional()
       .trim()
@@ -551,7 +557,7 @@ export const inventoryValidators = {
       .isInt({ min: 1 })
       .withMessage('Item ID is required'),
     body('transaction_type')
-      .isIn(['stock_in', 'stock_out', 'adjustment', 'transfer', 'waste'])
+      .isIn(['stock_in', 'stock_out', 'adjustment', 'transfer', 'waste', 'sale'])
       .withMessage('Invalid transaction type'),
     body('quantity')
       .isFloat({ min: 0.01 })

@@ -23,6 +23,11 @@ router.post('/transaction', canManageInventory, inventoryValidators.stockTransac
 router.get('/', inventoryController.getItems);
 router.post('/', canManageInventory, inventoryValidators.createItem, handleValidation, inventoryController.createItem);
 
+
+// Sales routes
+router.post('/sale', canManageInventory, inventoryValidators.stockTransaction, handleValidation, inventoryController.recordSale);
+router.get('/sales-report', inventoryController.getSalesReport);
+
 // Parameterized routes (MUST BE LAST to avoid conflicts)
 router.get('/:id', inventoryController.getItem);
 router.get('/:id/transactions', inventoryController.getItemTransactions);

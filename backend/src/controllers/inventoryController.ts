@@ -619,10 +619,207 @@ export default {
   createItem,
   updateItem,
   recordTransaction,
+  recordSale,
   getLowStockItems,
   getItemTransactions,
   getValueSummary,
+  getSalesReport,
   getSuppliers,
   createSupplier,
   updateSupplier,
 };
+
+/**
+ * Record inventory sale
+ * POST /api/v1/inventory/sale
+ */
+export const recordSale = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { item_id, quantity, selling_price, customer_id, payment_method, notes } = req.body;
+
+  if (!req.user) {
+    res.status(401).json({
+      success: false,
+      error: ERROR_MESSAGES.UNAUTHORIZED,
+    });
+    return;
+  }
+
+  const userId = req.user.id;
+
+  // Get current item
+  const item = await db.query(
+    `SELECT * FROM inventory_items WHERE id = $1 AND is_active = true`,
+    [item_id]
+  );
+
+  if (item.rows.length === 0) {
+    res.status(404).json({
+      success: false,
+      error: 'Inventory item not found',
+    });
+    return;
+  }
+
+  const currentItem = item.rows[0];
+  const currentQuantity = parseFloat(currentItem.quantity);
+
+  // Check sufficient stock
+  if (currentQuantity < quantity) {
+    res.status(400).json({
+      success: false,
+      error: ERROR_MESSAGES.INSUFFICIENT_INVENTORY,
+      details: {
+        available: currentQuantity,
+        requested: quantity,
+      },
+    });
+    return;
+  }
+
+  const newQuantity = currentQuantity - quantity;
+  const actualSellingPrice = selling_price || currentItem.selling_price || currentItem.unit_cost;
+  const totalAmount = quantity * actualSellingPrice;
+  const profit = (actualSellingPrice - currentItem.unit_cost) * quantity;
+
+  await transaction(async (client) => {
+    // Update item quantity
+    await client.query(
+      `UPDATE inventory_items SET quantity = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      [newQuantity, item_id]
+    );
+
+    // Record sale transaction
+    const saleResult = await client.query(
+      `INSERT INTO inventory_transactions
+       (item_id, transaction_type, quantity, previous_quantity, new_quantity, 
+        unit_cost, total_cost, selling_price, customer_id, performed_by, notes, reference)
+       VALUES ($1, 'sale', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING id`,
+      [
+        item_id,
+        quantity,
+        currentQuantity,
+        newQuantity,
+        currentItem.unit_cost,
+        quantity * currentItem.unit_cost, // cost
+        actualSellingPrice,
+        customer_id,
+        userId,
+        notes,
+        payment_method ? `SALE-${payment_method.toUpperCase()}` : 'SALE-CASH',
+      ]
+    );
+
+    // Log activity
+    await client.query(
+      `INSERT INTO activity_logs (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, 'sale', 'inventory_item', $2, $3)`,
+      [
+        userId,
+        item_id,
+        JSON.stringify({
+          quantity,
+          amount: totalAmount,
+          profit,
+          customer_id,
+        }),
+      ]
+    );
+  });
+
+  res.json({
+    success: true,
+    message: 'Sale recorded successfully',
+    data: {
+      item_id,
+      item_name: currentItem.name,
+      quantity,
+      unit_price: actualSellingPrice,
+      total_amount: totalAmount,
+      profit,
+      previous_quantity: currentQuantity,
+      new_quantity: newQuantity,
+    },
+  });
+});
+
+/**
+ * Get sales report
+ * GET /api/v1/inventory/sales-report
+ */
+export const getSalesReport = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { start_date, end_date, item_id, branch_id } = req.query;
+
+  const conditions: string[] = ["t.transaction_type = 'sale'"];
+  const params: unknown[] = [];
+  let paramIndex = 1;
+
+  const userBranchId = req.user?.branch_id;
+  if (req.user?.role !== 'super_admin' && userBranchId) {
+    conditions.push(`i.branch_id = $${paramIndex++}`);
+    params.push(userBranchId);
+  } else if (branch_id) {
+    conditions.push(`i.branch_id = $${paramIndex++}`);
+    params.push(branch_id);
+  }
+
+  if (start_date) {
+    conditions.push(`t.created_at >= $${paramIndex++}`);
+    params.push(start_date);
+  }
+
+  if (end_date) {
+    conditions.push(`t.created_at <= $${paramIndex++}`);
+    params.push(end_date);
+  }
+
+  if (item_id) {
+    conditions.push(`t.item_id = $${paramIndex++}`);
+    params.push(item_id);
+  }
+
+  const whereClause = `WHERE ${conditions.join(' AND ')}`;
+
+  // Get sales summary
+  const summaryResult = await db.query(
+    `SELECT 
+       COUNT(*) as total_sales,
+       SUM(t.quantity) as total_quantity_sold,
+       SUM(t.quantity * t.selling_price) as total_revenue,
+       SUM(t.quantity * t.unit_cost) as total_cost,
+       SUM(t.quantity * (t.selling_price - t.unit_cost)) as total_profit
+     FROM inventory_transactions t
+     JOIN inventory_items i ON t.item_id = i.id
+     ${whereClause}`,
+    params
+  );
+
+  // Get sales by item
+  const itemsResult = await db.query(
+    `SELECT 
+       i.id,
+       i.name,
+       i.category,
+       i.unit,
+       COUNT(*) as sales_count,
+       SUM(t.quantity) as quantity_sold,
+       AVG(t.selling_price) as avg_selling_price,
+       SUM(t.quantity * t.selling_price) as revenue,
+       SUM(t.quantity * t.unit_cost) as cost,
+       SUM(t.quantity * (t.selling_price - t.unit_cost)) as profit
+     FROM inventory_transactions t
+     JOIN inventory_items i ON t.item_id = i.id
+     ${whereClause}
+     GROUP BY i.id, i.name, i.category, i.unit
+     ORDER BY revenue DESC`,
+    params
+  );
+
+  res.json({
+    success: true,
+    data: {
+      summary: summaryResult.rows[0],
+      items: itemsResult.rows,
+    },
+  });
+});
