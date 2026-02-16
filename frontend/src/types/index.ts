@@ -157,7 +157,7 @@ export interface Service {
   updated_at: string;
 }
 
-export type ServiceCategory = 'wash' | 'detail' | 'polish' | 'interior' | 'exterior' | 'specialty' | 'package';
+export type ServiceCategory = 'exterior' | 'interior' | 'full_wash' | 'engine' | 'wax_polish' | 'underwash' | 'detailing' | 'other';
 
 export interface ServicePrice {
   id?: string;

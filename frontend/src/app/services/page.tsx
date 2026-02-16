@@ -60,13 +60,14 @@ import { z } from 'zod';
 import { Service, ServiceCategory, VehicleType } from '@/types';
 
 const serviceCategories: { value: ServiceCategory; label: string; icon: React.ElementType }[] = [
-  { value: 'wash', label: 'Wash', icon: Droplets },
-  { value: 'detail', label: 'Detailing', icon: Sparkles },
-  { value: 'polish', label: 'Polish', icon: Star },
-  { value: 'interior', label: 'Interior', icon: Settings },
-  { value: 'exterior', label: 'Exterior', icon: Droplets },
-  { value: 'specialty', label: 'Specialty', icon: Star },
-  { value: 'package', label: 'Package', icon: Tags },
+  { value: 'exterior', label: 'Exterior Wash', icon: Droplets },
+  { value: 'interior', label: 'Interior Clean', icon: Settings },
+  { value: 'full_wash', label: 'Full Wash', icon: Sparkles },
+  { value: 'engine', label: 'Engine Wash', icon: Settings },
+  { value: 'wax_polish', label: 'Wax & Polish', icon: Star },
+  { value: 'underwash', label: 'Underwash', icon: Droplets },
+  { value: 'detailing', label: 'Detailing', icon: Sparkles },
+  { value: 'other', label: 'Other', icon: Tags },
 ];
 
 const vehicleTypes: { value: VehicleType; label: string }[] = [
@@ -82,7 +83,7 @@ const vehicleTypes: { value: VehicleType; label: string }[] = [
 const serviceSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   description: z.string().optional(),
-  category: z.enum(['wash', 'detail', 'polish', 'interior', 'exterior', 'specialty', 'package']),
+  category: z.enum(['exterior', 'interior', 'full_wash', 'engine', 'wax_polish', 'underwash', 'detailing', 'other']),
   duration_minutes: z.number().min(1, 'Duration must be at least 1 minute'),
   is_addon: z.boolean(),
   prices: z.record(z.string(), z.number()),
@@ -113,7 +114,7 @@ export default function ServicesPage() {
   } = useForm<ServiceFormData>({
     resolver: zodResolver(serviceSchema),
     defaultValues: {
-      category: 'wash',
+      category: 'exterior',
       duration_minutes: 30,
       is_addon: false,
       prices: Object.fromEntries(vehicleTypes.map((vt) => [vt.value, 0])),
