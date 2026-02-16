@@ -613,21 +613,7 @@ export const getAvailableItems = asyncHandler(async (req: AuthenticatedRequest, 
  * GET /api/v1/inventory/available
  */
 
-export default {
-  getItems,
-  getItem,
-  createItem,
-  updateItem,
-  recordTransaction,
-  recordSale,
-  getLowStockItems,
-  getItemTransactions,
-  getValueSummary,
-  getSalesReport,
-  getSuppliers,
-  createSupplier,
-  updateSupplier,
-};
+
 
 /**
  * Record inventory sale
