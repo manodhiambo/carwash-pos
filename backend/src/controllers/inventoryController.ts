@@ -809,3 +809,19 @@ export const getSalesReport = asyncHandler(async (req: AuthenticatedRequest, res
     },
   });
 });
+
+export default {
+  getItems,
+  getItem,
+  createItem,
+  updateItem,
+  recordTransaction,
+  getLowStockItems,
+  getItemTransactions,
+  getValueSummary,
+  getSuppliers,
+  createSupplier,
+  updateSupplier,
+  recordSale,
+  getSalesReport,
+};
