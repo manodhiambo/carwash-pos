@@ -130,19 +130,41 @@ export default function ServicesPage() {
       }),
   });
 
-  // Create mutation
+    // Create mutation
   const createMutation = useMutation({
-    mutationFn: (data: ServiceFormData) => {
-      const priceValues = Object.values(data.prices).filter((p) => p > 0);
+    mutationFn: async (data: ServiceFormData) => {
+      // Build pricing array from prices object
+      const pricingArray = Object.entries(data.prices || {})
+        .filter(([_, price]) => price && price > 0)
+        .map(([vehicle_type, price]) => ({
+          vehicle_type,
+          price: parseFloat(String(price)),
+        }));
+
+      // Calculate base_price
+      const priceValues = pricingArray.map(p => p.price);
       const base_price = priceValues.length > 0 ? Math.min(...priceValues) : 0;
-      return servicesApi.create({
-        ...data,
-        base_price,
-        pricing: Object.entries(data.prices).map(([vehicle_type, price]) => ({
-          vehicle_type: vehicle_type as VehicleType,
-          price,
-        })),
-      } as ServiceFormData);
+
+      // Build clean payload - match backend expectations exactly
+      const payload = {
+        name: String(data.name).trim(),
+        description: data.description ? String(data.description).trim() : undefined,
+        category: data.category,
+        duration_minutes: parseInt(String(data.duration_minutes)),
+        is_addon: Boolean(data.is_addon),
+        base_price: base_price,
+        pricing: pricingArray.length > 0 ? pricingArray : undefined,
+        is_active: true,
+      };
+
+      // Remove undefined values
+      Object.keys(payload).forEach(key => {
+        if (payload[key as keyof typeof payload] === undefined) {
+          delete payload[key as keyof typeof payload];
+        }
+      });
+
+      return servicesApi.create(payload as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
@@ -150,26 +172,42 @@ export default function ServicesPage() {
       setFormDialog({ open: false });
       reset();
     },
-    onError: (error: { error?: string }) => {
-      toast.error(error.error || 'Failed to create service');
+    onError: (error: any) => {
+      const errorMsg = error?.response?.data?.error || error?.error || error?.message || 'Failed to create service';
+      toast.error(errorMsg);
+      console.error('Create service error:', error);
     },
   });
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<ServiceFormData> }) => {
-      const priceValues = data.prices ? Object.values(data.prices).filter((p) => p > 0) : [];
-      const base_price = priceValues.length > 0 ? Math.min(...priceValues) : undefined;
-      return servicesApi.update(id, {
-        ...data,
-        base_price,
-        pricing: data.prices
-          ? Object.entries(data.prices).map(([vehicle_type, price]) => ({
-              vehicle_type: vehicle_type as VehicleType,
-              price,
+    mutationFn: async ({ id, data }: { id: string; data: Partial<ServiceFormData> }) => {
+      // Build pricing array from prices object
+      const pricingArray = data.prices
+        ? Object.entries(data.prices)
+            .filter(([_, price]) => price && price > 0)
+            .map(([vehicle_type, price]) => ({
+              vehicle_type,
+              price: parseFloat(String(price)),
             }))
-          : undefined,
-      } as Partial<ServiceFormData>);
+        : undefined;
+
+      // Calculate base_price
+      const priceValues = pricingArray ? pricingArray.map(p => p.price) : [];
+      const base_price = priceValues.length > 0 ? Math.min(...priceValues) : undefined;
+
+      // Build clean payload - only include fields that changed
+      const payload: any = {};
+      
+      if (data.name !== undefined) payload.name = String(data.name).trim();
+      if (data.description !== undefined) payload.description = data.description ? String(data.description).trim() : null;
+      if (data.category !== undefined) payload.category = data.category;
+      if (data.duration_minutes !== undefined) payload.duration_minutes = parseInt(String(data.duration_minutes));
+      if (data.is_addon !== undefined) payload.is_addon = Boolean(data.is_addon);
+      if (base_price !== undefined) payload.base_price = base_price;
+      if (pricingArray !== undefined && pricingArray.length > 0) payload.pricing = pricingArray;
+
+      return servicesApi.update(id, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
@@ -177,8 +215,10 @@ export default function ServicesPage() {
       setFormDialog({ open: false });
       reset();
     },
-    onError: (error: { error?: string }) => {
-      toast.error(error.error || 'Failed to update service');
+    onError: (error: any) => {
+      const errorMsg = error?.response?.data?.error || error?.error || error?.message || 'Failed to update service';
+      toast.error(errorMsg);
+      console.error('Update service error:', error);
     },
   });
 
