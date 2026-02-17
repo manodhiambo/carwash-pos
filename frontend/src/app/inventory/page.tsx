@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryApi, suppliersApi } from '@/lib/api';
@@ -50,12 +51,13 @@ import {
   Loader2,
   Truck,
   History,
+  ShoppingCart,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { InventoryItem, InventoryCategory, Supplier } from '@/types';
+import { InventoryItem, InventoryCategory } from '@/types';
 
 const inventoryCategories: { value: InventoryCategory; label: string }[] = [
   { value: 'detergent', label: 'Detergent' },
@@ -78,6 +80,7 @@ const inventorySchema = z.object({
   max_stock_level: z.number().min(1),
   reorder_point: z.number().min(0),
   unit_cost: z.number().min(0),
+  selling_price: z.number().min(0).optional(),
   supplier_id: z.string().optional(),
   location: z.string().optional(),
 });
@@ -128,6 +131,7 @@ export default function InventoryPage() {
       max_stock_level: 100,
       reorder_point: 20,
       unit_cost: 0,
+      selling_price: 0,
     },
   });
 
@@ -138,12 +142,9 @@ export default function InventoryPage() {
     formState: { errors: stockErrors },
   } = useForm<StockFormData>({
     resolver: zodResolver(stockSchema),
-    defaultValues: {
-      quantity: 1,
-    },
+    defaultValues: { quantity: 1 },
   });
 
-  // Fetch inventory
   const { data: inventoryData, isLoading } = useQuery({
     queryKey: ['inventory', { search, category: categoryFilter, low_stock: lowStockOnly }],
     queryFn: () =>
@@ -155,19 +156,16 @@ export default function InventoryPage() {
       }),
   });
 
-  // Fetch suppliers
   const { data: suppliersData } = useQuery({
     queryKey: ['suppliers'],
     queryFn: () => suppliersApi.getAll({ limit: 100 }),
   });
 
-  // Fetch low stock
   const { data: lowStockData } = useQuery({
     queryKey: ['low-stock'],
     queryFn: () => inventoryApi.getLowStock(),
   });
 
-  // Create mutation
   const createMutation = useMutation({
     mutationFn: (data: InventoryFormData) => inventoryApi.create(data),
     onSuccess: () => {
@@ -181,7 +179,6 @@ export default function InventoryPage() {
     },
   });
 
-  // Update mutation
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<InventoryFormData> }) =>
       inventoryApi.update(id, data),
@@ -196,7 +193,6 @@ export default function InventoryPage() {
     },
   });
 
-  // Add stock mutation
   const addStockMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: StockFormData }) =>
       inventoryApi.addStock(id, data.quantity, data.unit_cost || 0, data.reference_number, data.notes),
@@ -212,7 +208,6 @@ export default function InventoryPage() {
     },
   });
 
-  // Remove stock mutation
   const removeStockMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: StockFormData }) =>
       inventoryApi.removeStock(id, data.quantity, data.notes || 'Stock removed', data.notes),
@@ -228,7 +223,6 @@ export default function InventoryPage() {
     },
   });
 
-  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) => inventoryApi.delete(id),
     onSuccess: () => {
@@ -256,6 +250,7 @@ export default function InventoryPage() {
       setValue('max_stock_level', item.max_stock_level);
       setValue('reorder_point', item.reorder_point);
       setValue('unit_cost', item.unit_cost);
+      setValue('selling_price', (item as any).selling_price || 0);
       setValue('supplier_id', item.supplier_id || '');
       setValue('location', item.location || '');
     } else {
@@ -279,7 +274,6 @@ export default function InventoryPage() {
 
   const onStockSubmit = (data: StockFormData) => {
     if (!stockDialog.item) return;
-
     if (stockDialog.type === 'add') {
       addStockMutation.mutate({ id: stockDialog.item.id, data });
     } else {
@@ -288,7 +282,6 @@ export default function InventoryPage() {
   };
 
   const getStockLevel = (item: InventoryItem) => {
-    const percentage = (item.current_stock / item.max_stock_level) * 100;
     if (item.current_stock <= item.min_stock_level) return 'critical';
     if (item.current_stock <= item.reorder_point) return 'low';
     return 'normal';
@@ -304,10 +297,18 @@ export default function InventoryPage() {
           { label: 'Inventory' },
         ]}
         actions={
-          <Button onClick={() => handleOpenForm()} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Item
-          </Button>
+          <div className="flex gap-2">
+            <Link href="/inventory/sales">
+              <Button variant="outline" className="gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                Record Sale
+              </Button>
+            </Link>
+            <Button onClick={() => handleOpenForm()} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Item
+            </Button>
+          </div>
         }
       />
 
@@ -398,16 +399,17 @@ export default function InventoryPage() {
                 <TableHead>Current Stock</TableHead>
                 <TableHead>Stock Level</TableHead>
                 <TableHead>Unit Cost</TableHead>
+                <TableHead>Selling Price</TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead className="w-[120px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableSkeleton columns={7} rows={5} />
+                <TableSkeleton columns={8} rows={5} />
               ) : items.length === 0 ? (
                 <TableEmpty
-                  colSpan={7}
+                  colSpan={8}
                   title="No inventory items found"
                   description="Add your first inventory item to get started"
                   icon={<Package className="h-12 w-12" />}
@@ -425,15 +427,14 @@ export default function InventoryPage() {
                     100,
                     (item.current_stock / item.max_stock_level) * 100
                   );
+                  const sellingPrice = (item as any).selling_price;
 
                   return (
                     <TableRow key={item.id}>
                       <TableCell>
                         <div>
                           <div className="font-medium">{item.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            SKU: {item.sku}
-                          </div>
+                          <div className="text-sm text-muted-foreground">SKU: {item.sku}</div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -466,9 +467,7 @@ export default function InventoryPage() {
                             <div
                               className={cn(
                                 'text-xs mt-1 font-medium',
-                                stockLevel === 'critical'
-                                  ? 'text-destructive'
-                                  : 'text-warning-600'
+                                stockLevel === 'critical' ? 'text-destructive' : 'text-warning-600'
                               )}
                             >
                               {stockLevel === 'critical' ? 'Critical' : 'Low Stock'}
@@ -477,6 +476,15 @@ export default function InventoryPage() {
                         </div>
                       </TableCell>
                       <TableCell>{formatCurrency(item.unit_cost)}</TableCell>
+                      <TableCell>
+                        {sellingPrice ? (
+                          <span className="font-medium text-success-600">
+                            {formatCurrency(sellingPrice)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Not set</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {item.supplier?.name || (
                           <span className="text-muted-foreground">-</span>
@@ -487,6 +495,7 @@ export default function InventoryPage() {
                           <Button
                             variant="outline"
                             size="icon-sm"
+                            title="Add Stock"
                             onClick={() => handleOpenStockDialog(item, 'add')}
                           >
                             <ArrowUp className="h-4 w-4 text-success-600" />
@@ -494,6 +503,7 @@ export default function InventoryPage() {
                           <Button
                             variant="outline"
                             size="icon-sm"
+                            title="Remove Stock"
                             onClick={() => handleOpenStockDialog(item, 'remove')}
                           >
                             <ArrowDown className="h-4 w-4 text-destructive" />
@@ -508,6 +518,12 @@ export default function InventoryPage() {
                               <DropdownMenuItem onClick={() => handleOpenForm(item)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild>
+                                <Link href="/inventory/sales">
+                                  <ShoppingCart className="h-4 w-4 mr-2" />
+                                  Sell Item
+                                </Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem>
                                 <History className="h-4 w-4 mr-2" />
@@ -542,26 +558,20 @@ export default function InventoryPage() {
               {formDialog.item ? 'Edit Item' : 'Add New Item'}
             </DialogTitle>
             <DialogDescription>
-              {formDialog.item
-                ? 'Update inventory item details'
-                : 'Enter the item details below'}
+              {formDialog.item ? 'Update inventory item details' : 'Enter the item details below'}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name" required>
-                  Item Name
-                </Label>
+                <Label htmlFor="name" required>Item Name</Label>
                 <Input id="name" {...register('name')} placeholder="Car Shampoo" />
                 {errors.name && (
                   <p className="text-sm text-destructive">{errors.name.message}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sku" required>
-                  SKU
-                </Label>
+                <Label htmlFor="sku" required>SKU</Label>
                 <Input id="sku" {...register('sku')} placeholder="CS-001" />
                 {errors.sku && (
                   <p className="text-sm text-destructive">{errors.sku.message}</p>
@@ -579,9 +589,7 @@ export default function InventoryPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="unit" required>
-                  Unit
-                </Label>
+                <Label htmlFor="unit" required>Unit</Label>
                 <Input id="unit" {...register('unit')} placeholder="liters, pcs, kg" />
               </div>
             </div>
@@ -619,9 +627,24 @@ export default function InventoryPage() {
                 <Input
                   id="unit_cost"
                   type="number"
+                  step="0.01"
                   {...register('unit_cost', { valueAsNumber: true })}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="selling_price">Selling Price (KES)</Label>
+                <Input
+                  id="selling_price"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  {...register('selling_price', { valueAsNumber: true })}
+                />
+                <p className="text-xs text-muted-foreground">Retail price for this item</p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Supplier</Label>
                 <SimpleSelect
@@ -631,6 +654,14 @@ export default function InventoryPage() {
                     { value: '', label: 'Select Supplier' },
                     ...suppliers.map((s) => ({ value: s.id, label: s.name })),
                   ]}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  {...register('location')}
+                  placeholder="Storage location"
                 />
               </div>
             </div>
@@ -668,7 +699,10 @@ export default function InventoryPage() {
       </Dialog>
 
       {/* Stock Dialog */}
-      <Dialog open={stockDialog.open} onOpenChange={(open) => setStockDialog({ ...stockDialog, open })}>
+      <Dialog
+        open={stockDialog.open}
+        onOpenChange={(open) => setStockDialog({ ...stockDialog, open })}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -681,11 +715,9 @@ export default function InventoryPage() {
           </DialogHeader>
           <form onSubmit={handleStockSubmit(onStockSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="quantity" required>
-                Quantity
-              </Label>
+              <Label htmlFor="stock-quantity" required>Quantity</Label>
               <Input
-                id="quantity"
+                id="stock-quantity"
                 type="number"
                 {...registerStock('quantity', { valueAsNumber: true })}
               />
@@ -697,9 +729,9 @@ export default function InventoryPage() {
             {stockDialog.type === 'add' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="unit_cost">Unit Cost (KES)</Label>
+                  <Label htmlFor="stock-unit-cost">Unit Cost (KES)</Label>
                   <Input
-                    id="unit_cost"
+                    id="stock-unit-cost"
                     type="number"
                     {...registerStock('unit_cost', { valueAsNumber: true })}
                   />
@@ -716,11 +748,13 @@ export default function InventoryPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="stock-notes">Notes</Label>
               <Textarea
-                id="notes"
+                id="stock-notes"
                 {...registerStock('notes')}
-                placeholder={stockDialog.type === 'add' ? 'Purchase details...' : 'Reason for removal...'}
+                placeholder={
+                  stockDialog.type === 'add' ? 'Purchase details...' : 'Reason for removal...'
+                }
                 rows={2}
               />
             </div>
@@ -764,8 +798,8 @@ export default function InventoryPage() {
           <DialogHeader>
             <DialogTitle>Delete Item</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{deleteDialog.item?.name}"? This action cannot
-              be undone.
+              Are you sure you want to delete &quot;{deleteDialog.item?.name}&quot;? This action
+              cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

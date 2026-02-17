@@ -87,6 +87,12 @@ const navItems: NavItem[] = [
     icon: Package,
   },
   {
+    title: 'Inventory Sales',
+    href: '/inventory/sales',
+    icon: ShoppingCart,
+    roles: ['super_admin', 'admin', 'manager', 'cashier'],
+  },
+  {
     title: 'Staff',
     href: '/staff',
     icon: UserCog,
