@@ -9,7 +9,6 @@ const DialogRoot = DialogPrimitive.Root;
 
 const DialogTrigger = DialogPrimitive.Trigger;
 
-// Convenience wrapper with title and description
 interface DialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -69,22 +68,37 @@ const DialogContent = React.forwardRef<
 >(({ className, children, showCloseButton = true, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        'fixed left-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 top-[5%] max-h-[90vh] sm:top-[50%] sm:translate-y-[-50%] sm:max-h-[85vh] rounded-lg overflow-y-auto',
-        className
-      )}
-      {...props}
-    >
-      {children}
-      {showCloseButton && (
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </DialogPrimitive.Close>
-      )}
-    </DialogPrimitive.Content>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          'relative w-full sm:max-w-lg',
+          'max-h-[92dvh] sm:max-h-[85vh]',
+          'flex flex-col',
+          'bg-background border shadow-lg',
+          'rounded-t-2xl sm:rounded-lg',
+          'duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out',
+          'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+          'data-[state=closed]:slide-out-to-bottom sm:data-[state=closed]:zoom-out-95',
+          'data-[state=open]:slide-in-from-bottom sm:data-[state=open]:zoom-in-95',
+          className
+        )}
+        {...props}
+      >
+        <div className="flex-shrink-0 flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+        </div>
+        <div className="flex-1 overflow-y-auto overscroll-contain p-6 pt-3 sm:pt-6">
+          {children}
+        </div>
+        {showCloseButton && (
+          <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-10">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        )}
+      </DialogPrimitive.Content>
+    </div>
   </DialogPortal>
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
@@ -95,7 +109,7 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex flex-col space-y-1.5 text-center sm:text-left',
+      'flex flex-col space-y-1.5 text-center sm:text-left mb-4',
       className
     )}
     {...props}
@@ -109,7 +123,7 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2',
+      'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2 pt-2',
       className
     )}
     {...props}
@@ -144,7 +158,6 @@ const DialogDescription = React.forwardRef<
 ));
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
-// Alert Dialog for confirmations
 interface AlertDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
