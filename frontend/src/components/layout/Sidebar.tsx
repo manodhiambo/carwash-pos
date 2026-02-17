@@ -28,7 +28,8 @@ import {
   Wallet,
   History,
   DollarSign,
-  ShoppingCart } from 'lucide-react';
+  ShoppingCart,
+} from 'lucide-react';
 import { useAuthStore } from '@/stores';
 
 interface NavItem {
