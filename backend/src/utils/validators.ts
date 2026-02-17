@@ -574,6 +574,30 @@ export const inventoryValidators = {
       .trim()
       .isLength({ max: 500 }),
   ],
+
+  saleTransaction: [
+    body('item_id')
+      .isInt({ min: 1 })
+      .withMessage('Item ID is required'),
+    body('quantity')
+      .isFloat({ min: 0.01 })
+      .withMessage('Quantity must be greater than 0'),
+    body('selling_price')
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage('Selling price must be positive'),
+    body('customer_id')
+      .optional()
+      .isInt({ min: 1 }),
+    body('payment_method')
+      .optional()
+      .isIn(['cash', 'mpesa', 'card'])
+      .withMessage('Invalid payment method'),
+    body('notes')
+      .optional()
+      .trim()
+      .isLength({ max: 500 }),
+  ],
 };
 
 // Bay Validators

@@ -25,7 +25,7 @@ router.post('/', canManageInventory, inventoryValidators.createItem, handleValid
 
 
 // Sales routes
-router.post('/sale', canManageInventory, inventoryValidators.stockTransaction, handleValidation, inventoryController.recordSale);
+router.post('/sale', canManageInventory, inventoryValidators.saleTransaction, handleValidation, inventoryController.recordSale);
 router.get('/sales-report', inventoryController.getSalesReport);
 
 // Parameterized routes (MUST BE LAST to avoid conflicts)
