@@ -698,17 +698,12 @@ export const recordSale = asyncHandler(async (req: AuthenticatedRequest, res: Re
 
     // Log activity
     await client.query(
-      `INSERT INTO activity_logs (user_id, action, entity_type, entity_id, details)
+      `INSERT INTO activity_logs (user_id, action, entity_type, entity_id, new_values)
        VALUES ($1, 'sale', 'inventory_item', $2, $3)`,
       [
         userId,
         item_id,
-        JSON.stringify({
-          quantity,
-          amount: totalAmount,
-          profit,
-          customer_id,
-        }),
+        JSON.stringify({ quantity, amount: totalAmount, profit, customer_id }),
       ]
     );
   });
