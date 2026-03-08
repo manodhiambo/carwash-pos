@@ -271,7 +271,7 @@ export default function ReceiptPage() {
 
         <div className="max-w-md mx-auto">
           {/* Receipt Card */}
-          <Card className="p-0 overflow-hidden" ref={receiptRef}>
+          <Card id="receipt-card" className="p-0 overflow-hidden" ref={receiptRef}>
             {/* Print-friendly receipt */}
             <div className="bg-white text-black p-6 print:p-4">
               {/* Header */}
