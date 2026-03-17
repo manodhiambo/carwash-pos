@@ -699,6 +699,7 @@ export const jobsApi = {
     bay_id?: string;
     assigned_staff_id?: string;
     date?: string;
+    search?: string;
   }): Promise<PaginatedResponse<Job>> => {
     try {
       const response = await apiClient.get('/jobs', { params });

@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
-import { servicesApi, vehiclesApi, customersApi, baysApi, usersApi } from '@/lib/api';
+import { servicesApi, vehiclesApi, jobsApi, baysApi, usersApi } from '@/lib/api';
 import { useJobStore } from '@/stores';
 import { formatCurrency, formatVehicleReg } from '@/lib/utils';
 import { PageContainer, PageHeader } from '@/components/layout';
@@ -19,6 +19,15 @@ import { Textarea } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Car,
   Search,
@@ -26,14 +35,16 @@ import {
   Wrench,
   Clock,
   AlertCircle,
+  AlertTriangle,
   CheckCircle,
   Loader2,
   Plus,
   Percent,
   TrendingUp,
+  ExternalLink,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { VehicleType, Service, JobPriority, Bay, User } from '@/types';
+import { VehicleType, Service, JobPriority, Bay, User, Job } from '@/types';
 
 const PRESET_COMMISSION_RATES = [10, 15, 20, 25, 30, 35, 40, 45, 50];
 
@@ -90,6 +101,13 @@ export default function CheckInPage() {
   const [customPrices, setCustomPrices] = React.useState<Record<string, number>>({});
   const [commissionRates, setCommissionRates] = React.useState<Record<string, number>>({});
 
+  // Duplicate detection state
+  const [activeJob, setActiveJob] = React.useState<Job | null>(null);
+  const [showDuplicateModal, setShowDuplicateModal] = React.useState(false);
+  const [addServiceMode, setAddServiceMode] = React.useState(false);
+  const [addServiceSelected, setAddServiceSelected] = React.useState<Set<string>>(new Set());
+  const [isAddingService, setIsAddingService] = React.useState(false);
+
   const {
     register,
     handleSubmit,
@@ -132,35 +150,80 @@ export default function CheckInPage() {
   const availableBays = ((baysData?.data || []) as Bay[]).filter((b) => b.status === 'available');
   const staffList = ((staffData?.data || []) as User[]).filter((u) => ['attendant', 'supervisor'].includes(u.role));
 
-  // Search for existing vehicle
+  // Search for existing vehicle AND check for active jobs
   const handleVehicleSearch = async () => {
     if (!registrationNumber || registrationNumber.length < 4) return;
 
     setSearchingVehicle(true);
     setFoundVehicle(null);
+    setActiveJob(null);
+
+    const cleanReg = registrationNumber.replace(/\s/g, '').toUpperCase();
 
     try {
-      const response = await vehiclesApi.getByRegistration(registrationNumber.replace(/\s/g, ''));
-      const vehicle = response.data;
+      // Run both checks in parallel
+      const [vehicleResult, activeJobsResult] = await Promise.allSettled([
+        vehiclesApi.getByRegistration(cleanReg),
+        jobsApi.getAll({
+          search: cleanReg,
+          status: 'checked_in,in_queue,washing,detailing',
+          limit: 5,
+        }),
+      ]);
 
-      if (vehicle) {
+      // Handle vehicle lookup
+      if (vehicleResult.status === 'fulfilled' && vehicleResult.value.data) {
+        const vehicle = vehicleResult.value.data;
         setValue('vehicle_type', vehicle.vehicle_type);
         setValue('make', vehicle.make || '');
         setValue('model', vehicle.model || '');
         setValue('color', vehicle.color || '');
-
         if (vehicle.customer) {
           setValue('customer_name', vehicle.customer.name);
           setValue('customer_phone', vehicle.customer.phone);
         }
-
         setFoundVehicle(true);
-        toast.success('Returning customer! Vehicle details loaded.');
+      } else {
+        setFoundVehicle(false);
+      }
+
+      // Check for active (non-completed) jobs for this registration
+      if (activeJobsResult.status === 'fulfilled') {
+        const jobs = activeJobsResult.value.data || [];
+        // Filter to exact registration match (search is partial)
+        const matchingJob = jobs.find(
+          (j: any) =>
+            (j.registration_no || j.vehicle?.registration_no || '')
+              .replace(/\s/g, '')
+              .toUpperCase() === cleanReg
+        );
+        if (matchingJob) {
+          setActiveJob(matchingJob as unknown as Job);
+          setShowDuplicateModal(true);
+        }
       }
     } catch {
       setFoundVehicle(false);
     } finally {
       setSearchingVehicle(false);
+    }
+  };
+
+  // Add selected services to the existing active job
+  const handleAddServiceToExistingJob = async () => {
+    if (!activeJob || addServiceSelected.size === 0) return;
+    setIsAddingService(true);
+    try {
+      for (const serviceId of Array.from(addServiceSelected)) {
+        await jobsApi.addService(String((activeJob as any).id), serviceId);
+      }
+      toast.success(`${addServiceSelected.size} service(s) added to Job #${(activeJob as any).job_no || (activeJob as any).job_number}`);
+      setShowDuplicateModal(false);
+      router.push(`/jobs/${(activeJob as any).id}`);
+    } catch (err: any) {
+      toast.error(err?.error || 'Failed to add service to existing job');
+    } finally {
+      setIsAddingService(false);
     }
   };
 
@@ -242,6 +305,32 @@ export default function CheckInPage() {
 
   // Submit form
   const onSubmit = async (data: CheckInFormData) => {
+    // Safety net: check for active job before submitting
+    if (!activeJob) {
+      const cleanReg = data.registration_number.replace(/\s/g, '').toUpperCase();
+      try {
+        const activeJobsResult = await jobsApi.getAll({
+          search: cleanReg,
+          status: 'checked_in,in_queue,washing,detailing',
+          limit: 5,
+        });
+        const jobs = activeJobsResult.data || [];
+        const matchingJob = jobs.find(
+          (j: any) =>
+            (j.registration_no || j.vehicle?.registration_no || '')
+              .replace(/\s/g, '')
+              .toUpperCase() === cleanReg
+        );
+        if (matchingJob) {
+          setActiveJob(matchingJob as unknown as Job);
+          setShowDuplicateModal(true);
+          return; // Stop submission and show modal
+        }
+      } catch {
+        // If check fails, allow submission to proceed
+      }
+    }
+
     try {
       const job = await checkIn({
         registration_no: data.registration_number.replace(/\s/g, '').toUpperCase(),
@@ -318,15 +407,25 @@ export default function CheckInPage() {
                         )}
                       </Button>
                     </div>
-                    {foundVehicle === true && (
+                    {foundVehicle === true && !activeJob && (
                       <p className="text-sm text-success-600 flex items-center gap-1">
                         <CheckCircle className="h-4 w-4" /> Returning customer
                       </p>
                     )}
-                    {foundVehicle === false && (
+                    {foundVehicle === false && !activeJob && (
                       <p className="text-sm text-muted-foreground flex items-center gap-1">
                         <AlertCircle className="h-4 w-4" /> New vehicle
                       </p>
+                    )}
+                    {activeJob && (
+                      <button
+                        type="button"
+                        onClick={() => setShowDuplicateModal(true)}
+                        className="text-sm text-orange-600 flex items-center gap-1 hover:underline text-left"
+                      >
+                        <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                        Already checked in — Job #{(activeJob as any).job_no || (activeJob as any).job_number}. Tap to manage.
+                      </button>
                     )}
                     {errors.registration_number && (
                       <p className="text-sm text-destructive">
@@ -747,6 +846,181 @@ export default function CheckInPage() {
           </div>
         </div>
       </form>
+
+      {/* Duplicate Vehicle Modal */}
+      <Dialog open={showDuplicateModal} onOpenChange={setShowDuplicateModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-600">
+              <AlertTriangle className="h-5 w-5" />
+              Vehicle Already Checked In
+            </DialogTitle>
+            <DialogDescription>
+              This vehicle has an active job in progress. You can add a new service to the existing
+              job, or dismiss to review.
+            </DialogDescription>
+          </DialogHeader>
+
+          {activeJob && (
+            <div className="space-y-4">
+              {/* Existing Job Info */}
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-9 w-9 rounded-full bg-orange-100 flex items-center justify-center">
+                      <Car className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm">
+                        {(activeJob as any).registration_no || registrationNumber}
+                      </div>
+                      <div className="text-xs text-muted-foreground capitalize">
+                        {(activeJob as any).vehicle_type || ''}
+                      </div>
+                    </div>
+                  </div>
+                  <Badge variant="warning">
+                    {((activeJob as any).status || '').replace('_', ' ')}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Job #:</span>{' '}
+                    <span className="font-medium">{(activeJob as any).job_no || (activeJob as any).job_number}</span>
+                  </div>
+                  {(activeJob as any).bay_name && (
+                    <div>
+                      <span className="text-muted-foreground">Bay:</span>{' '}
+                      <span className="font-medium">{(activeJob as any).bay_name}</span>
+                    </div>
+                  )}
+                  {(activeJob as any).final_amount > 0 && (
+                    <div>
+                      <span className="text-muted-foreground">Current Total:</span>{' '}
+                      <span className="font-medium text-primary">
+                        {formatCurrency((activeJob as any).final_amount)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {(activeJob as any).services && (activeJob as any).services.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-orange-200">
+                    <p className="text-xs text-muted-foreground mb-1">Current services:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {((activeJob as any).services as any[]).map((s: any, i: number) => (
+                        <span key={i} className="text-xs px-2 py-0.5 bg-white border border-orange-200 rounded-full">
+                          {s.name || s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Add Service Section */}
+              {!addServiceMode ? (
+                <div className="flex flex-col gap-2">
+                  <Button
+                    onClick={() => setAddServiceMode(true)}
+                    className="w-full gap-2"
+                    variant="default"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Another Service to This Job
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push(`/jobs/${(activeJob as any).id}`)}
+                    className="w-full gap-2"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    View Existing Job
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowDuplicateModal(false);
+                      setActiveJob(null);
+                    }}
+                    className="w-full text-muted-foreground"
+                  >
+                    Dismiss — Continue with New Check-In
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Select services to add:</p>
+                  <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                    {services
+                      .filter((s) => s && s.id && s.is_active !== false)
+                      .map((service) => {
+                        const serviceIdStr = String(service.id);
+                        const isSelected = addServiceSelected.has(serviceIdStr);
+                        const price = getServicePrice(service);
+                        return (
+                          <div
+                            key={serviceIdStr}
+                            onClick={() => {
+                              const next = new Set(addServiceSelected);
+                              if (next.has(serviceIdStr)) next.delete(serviceIdStr);
+                              else next.add(serviceIdStr);
+                              setAddServiceSelected(next);
+                            }}
+                            className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              isSelected
+                                ? 'border-primary bg-primary/5'
+                                : 'border-border hover:border-primary/40'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => {
+                                  const next = new Set(addServiceSelected);
+                                  if (next.has(serviceIdStr)) next.delete(serviceIdStr);
+                                  else next.add(serviceIdStr);
+                                  setAddServiceSelected(next);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <div>
+                                <div className="text-sm font-medium">{service.name}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {service.duration_minutes || 0} min
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-sm font-semibold">
+                              {price > 0 ? formatCurrency(price) : 'Custom'}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setAddServiceMode(false)}>
+                      Back
+                    </Button>
+                    <Button
+                      onClick={handleAddServiceToExistingJob}
+                      disabled={addServiceSelected.size === 0 || isAddingService}
+                      className="gap-2"
+                    >
+                      {isAddingService ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                      Add {addServiceSelected.size > 0 ? `${addServiceSelected.size} ` : ''}Service
+                      {addServiceSelected.size !== 1 ? 's' : ''}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 }
