@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -121,7 +122,6 @@ export default function ServicesPage() {
     },
   });
 
-  // Fetch services
   const { data: servicesData, isLoading } = useQuery({
     queryKey: ['services', { category: categoryFilter }],
     queryFn: () =>
@@ -131,40 +131,31 @@ export default function ServicesPage() {
       }),
   });
 
-    // Create mutation
   const createMutation = useMutation({
     mutationFn: async (data: ServiceFormData) => {
-      // Build pricing array from prices object
       const pricingArray = Object.entries(data.prices || {})
         .filter(([_, price]) => price && price > 0)
         .map(([vehicle_type, price]) => ({
           vehicle_type,
           price: parseFloat(String(price)),
         }));
-
-      // Calculate base_price
       const priceValues = pricingArray.map(p => p.price);
       const base_price = priceValues.length > 0 ? Math.min(...priceValues) : 0;
-
-      // Build clean payload - match backend expectations exactly
       const payload = {
         name: String(data.name).trim(),
         description: data.description ? String(data.description).trim() : undefined,
         category: data.category,
         duration_minutes: parseInt(String(data.duration_minutes)),
         is_addon: Boolean(data.is_addon),
-        base_price: base_price,
+        base_price,
         pricing: pricingArray.length > 0 ? pricingArray : undefined,
         is_active: true,
       };
-
-      // Remove undefined values
       Object.keys(payload).forEach(key => {
         if (payload[key as keyof typeof payload] === undefined) {
           delete payload[key as keyof typeof payload];
         }
       });
-
       return servicesApi.create(payload as any);
     },
     onSuccess: () => {
@@ -174,16 +165,12 @@ export default function ServicesPage() {
       reset();
     },
     onError: (error: any) => {
-      const errorMsg = error?.response?.data?.error || error?.error || error?.message || 'Failed to create service';
-      toast.error(errorMsg);
-      console.error('Create service error:', error);
+      toast.error(error?.response?.data?.error || error?.error || error?.message || 'Failed to create service');
     },
   });
 
-  // Update mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<ServiceFormData> }) => {
-      // Build pricing array from prices object
       const pricingArray = data.prices
         ? Object.entries(data.prices)
             .filter(([_, price]) => price && price > 0)
@@ -192,14 +179,9 @@ export default function ServicesPage() {
               price: parseFloat(String(price)),
             }))
         : undefined;
-
-      // Calculate base_price
       const priceValues = pricingArray ? pricingArray.map(p => p.price) : [];
       const base_price = priceValues.length > 0 ? Math.min(...priceValues) : undefined;
-
-      // Build clean payload - only include fields that changed
       const payload: any = {};
-      
       if (data.name !== undefined) payload.name = String(data.name).trim();
       if (data.description !== undefined) payload.description = data.description ? String(data.description).trim() : null;
       if (data.category !== undefined) payload.category = data.category;
@@ -207,7 +189,6 @@ export default function ServicesPage() {
       if (data.is_addon !== undefined) payload.is_addon = Boolean(data.is_addon);
       if (base_price !== undefined) payload.base_price = base_price;
       if (pricingArray !== undefined && pricingArray.length > 0) payload.pricing = pricingArray;
-
       return servicesApi.update(id, payload);
     },
     onSuccess: () => {
@@ -217,13 +198,10 @@ export default function ServicesPage() {
       reset();
     },
     onError: (error: any) => {
-      const errorMsg = error?.response?.data?.error || error?.error || error?.message || 'Failed to update service';
-      toast.error(errorMsg);
-      console.error('Update service error:', error);
+      toast.error(error?.response?.data?.error || error?.error || error?.message || 'Failed to update service');
     },
   });
 
-  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (id: string) => servicesApi.delete(id),
     onSuccess: () => {
@@ -248,22 +226,14 @@ export default function ServicesPage() {
       setValue('duration_minutes', service.duration_minutes);
       setValue('is_addon', service.is_addon ?? false);
       const prices: Record<string, number> = {};
-      // Initialize all vehicle types to 0, then overlay existing prices
-      vehicleTypes.forEach((vt) => {
-        prices[vt.value] = 0;
-      });
+      vehicleTypes.forEach((vt) => { prices[vt.value] = 0; });
       const servicePricing = service.prices || service.pricing || [];
-      servicePricing.forEach((p) => {
-        prices[p.vehicle_type] = p.price;
-      });
+      servicePricing.forEach((p) => { prices[p.vehicle_type] = p.price; });
       setValue('prices', prices);
     } else {
       reset();
-      // Set default prices
       const defaultPrices: Record<string, number> = {};
-      vehicleTypes.forEach((vt) => {
-        defaultPrices[vt.value] = 0;
-      });
+      vehicleTypes.forEach((vt) => { defaultPrices[vt.value] = 0; });
       setValue('prices', defaultPrices);
     }
     setFormDialog({ open: true, service });
@@ -282,6 +252,72 @@ export default function ServicesPage() {
     const price = pricing.find((p) => p.vehicle_type === vehicleType);
     return price?.price || service.base_price || 0;
   };
+
+  const renderMobileCards = (servicesList: Service[]) => (
+    <div className="sm:hidden space-y-3">
+      {isLoading ? (
+        Array.from({ length: 3 }).map((_, i) => (
+          <Card key={i}><CardContent className="pt-4"><div className="h-20 animate-pulse bg-muted rounded" /></CardContent></Card>
+        ))
+      ) : servicesList.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-muted-foreground">
+            <Tags className="h-10 w-10 mx-auto mb-3 opacity-40" />
+            <p className="font-medium">No services found</p>
+            <Button onClick={() => handleOpenForm()} className="mt-4 gap-2" size="sm">
+              <Plus className="h-4 w-4" /> Add Service
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        servicesList.map((service) => (
+          <Card key={service.id} className="border-l-4 border-l-primary/60">
+            <CardContent className="pt-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm">{service.name}</div>
+                  {service.description && (
+                    <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{service.description}</div>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <Badge variant="secondary" className="capitalize text-xs">{service.category}</Badge>
+                    <Badge variant={service.is_active ? 'success' : 'secondary'} className="text-xs">
+                      {service.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3" />{service.duration_minutes}min
+                    </span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-1 text-xs">
+                    {(['saloon', 'suv', 'pickup'] as VehicleType[]).map((vt) => (
+                      <div key={vt} className="bg-muted rounded px-1.5 py-1">
+                        <div className="text-muted-foreground capitalize">{vt}</div>
+                        <div className="font-medium">{formatCurrency(getServicePrice(service, vt))}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon-sm"><MoreHorizontal className="h-4 w-4" /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleOpenForm(service)}>
+                      <Edit className="h-4 w-4 mr-2" />Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteDialog({ open: true, service })}>
+                      <Trash2 className="h-4 w-4 mr-2" />Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </CardContent>
+          </Card>
+        ))
+      )}
+    </div>
+  );
 
   const renderServicesTable = (servicesList: Service[]) => (
     <Table>
@@ -309,8 +345,7 @@ export default function ServicesPage() {
             icon={<Tags className="h-12 w-12" />}
             action={
               <Button onClick={() => handleOpenForm()}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Service
+                <Plus className="h-4 w-4 mr-2" />Add Service
               </Button>
             }
           />
@@ -321,16 +356,12 @@ export default function ServicesPage() {
                 <div>
                   <div className="font-medium">{service.name}</div>
                   {service.description && (
-                    <div className="text-sm text-muted-foreground truncate max-w-[200px]">
-                      {service.description}
-                    </div>
+                    <div className="text-sm text-muted-foreground truncate max-w-[200px]">{service.description}</div>
                   )}
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant="secondary" className="capitalize">
-                  {service.category}
-                </Badge>
+                <Badge variant="secondary" className="capitalize">{service.category}</Badge>
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
@@ -350,22 +381,18 @@ export default function ServicesPage() {
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-sm">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
+                    <Button variant="ghost" size="icon-sm"><MoreHorizontal className="h-4 w-4" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => handleOpenForm(service)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit
+                      <Edit className="h-4 w-4 mr-2" />Edit
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
                       onClick={() => setDeleteDialog({ open: true, service })}
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
+                      <Trash2 className="h-4 w-4 mr-2" />Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -425,26 +452,24 @@ export default function ServicesPage() {
         <TabsList className="mb-6">
           <TabsTrigger value="services">
             Main Services
-            <Badge variant="secondary" className="ml-2">
-              {mainServices.length}
-            </Badge>
+            <Badge variant="secondary" className="ml-2">{mainServices.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="addons">
             Add-ons
-            <Badge variant="secondary" className="ml-2">
-              {addons.length}
-            </Badge>
+            <Badge variant="secondary" className="ml-2">{addons.length}</Badge>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="services">
-          <Card>
+          {renderMobileCards(mainServices)}
+          <Card className="hidden sm:block">
             <CardContent className="p-0">{renderServicesTable(mainServices)}</CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="addons">
-          <Card>
+          {renderMobileCards(addons)}
+          <Card className="hidden sm:block">
             <CardContent className="p-0">{renderServicesTable(addons)}</CardContent>
           </Card>
         </TabsContent>
@@ -463,95 +488,75 @@ export default function ServicesPage() {
                 : 'Enter service details and set pricing for each vehicle type'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="name" required>
-                  Service Name
-                </Label>
-                <Input id="name" {...register('name')} placeholder="Full Wash" />
-                {errors.name && (
-                  <p className="text-sm text-destructive">{errors.name.message}</p>
-                )}
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            <DialogBody className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name" required>Service Name</Label>
+                  <Input id="name" {...register('name')} placeholder="Full Wash" />
+                  {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <SimpleSelect
+                    value={watch('category')}
+                    onValueChange={(value) => setValue('category', value as ServiceCategory)}
+                    options={serviceCategories.map((c) => ({ value: c.value, label: c.label }))}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label>Category</Label>
-                <SimpleSelect
-                  value={watch('category')}
-                  onValueChange={(value) => setValue('category', value as ServiceCategory)}
-                  options={serviceCategories.map((c) => ({ value: c.value, label: c.label }))}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                {...register('description')}
-                placeholder="Service description..."
-                rows={2}
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="duration_minutes" required>
-                  Duration (minutes)
-                </Label>
-                <Input
-                  id="duration_minutes"
-                  type="number"
-                  {...register('duration_minutes', { valueAsNumber: true })}
-                />
+                <Label htmlFor="description">Description</Label>
+                <Textarea id="description" {...register('description')} placeholder="Service description..." rows={2} />
               </div>
 
-              <div className="space-y-2 flex items-end">
-                <LabeledSwitch
-                  label="Is Add-on"
-                  description="Can be added to main services"
-                  checked={watch('is_addon')}
-                  onCheckedChange={(checked) => setValue('is_addon', checked)}
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="duration_minutes" required>Duration (minutes)</Label>
+                  <Input
+                    id="duration_minutes"
+                    type="number"
+                    {...register('duration_minutes', { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="space-y-2 flex items-end">
+                  <LabeledSwitch
+                    label="Is Add-on"
+                    description="Can be added to main services"
+                    checked={watch('is_addon')}
+                    onCheckedChange={(checked) => setValue('is_addon', checked)}
+                  />
+                </div>
               </div>
-            </div>
 
-            <Separator />
+              <Separator />
 
-            <div className="space-y-3">
-              <Label>Pricing by Vehicle Type</Label>
-              <div className="grid gap-3 md:grid-cols-2">
-                {vehicleTypes.map((vt) => (
-                  <div key={vt.value} className="flex items-center gap-2">
-                    <Label className="w-24 text-sm">{vt.label}</Label>
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                        KES
-                      </span>
-                      <Input
-                        type="number"
-                        className="pl-12"
-                        {...register(`prices.${vt.value}`, { valueAsNumber: true })}
-                      />
+              <div className="space-y-3">
+                <Label>Pricing by Vehicle Type</Label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {vehicleTypes.map((vt) => (
+                    <div key={vt.value} className="flex items-center gap-2">
+                      <Label className="w-24 text-sm">{vt.label}</Label>
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">KES</span>
+                        <Input
+                          type="number"
+                          className="pl-12"
+                          {...register(`prices.${vt.value}`, { valueAsNumber: true })}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            </DialogBody>
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setFormDialog({ open: false })}
-              >
+              <Button type="button" variant="outline" onClick={() => setFormDialog({ open: false })}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-              >
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
                 {(createMutation.isPending || updateMutation.isPending) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
@@ -568,19 +573,14 @@ export default function ServicesPage() {
           <DialogHeader>
             <DialogTitle>Delete Service</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{deleteDialog.service?.name}"? This action cannot
-              be undone.
+              Are you sure you want to delete "{deleteDialog.service?.name}"? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialog({ open: false })}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false })}>Cancel</Button>
             <Button
               variant="destructive"
-              onClick={() =>
-                deleteDialog.service && deleteMutation.mutate(deleteDialog.service.id)
-              }
+              onClick={() => deleteDialog.service && deleteMutation.mutate(deleteDialog.service.id)}
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

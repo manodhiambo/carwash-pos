@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -624,7 +625,7 @@ export default function InventoryPage() {
 
       {/* Item Form Dialog */}
       <Dialog open={formDialog.open} onOpenChange={(open) => setFormDialog({ open })}>
-        <DialogContent className="sm:max-w-xl max-h-[90dvh] flex flex-col">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>
               {formDialog.item ? 'Edit Item' : 'Add New Item'}
@@ -634,7 +635,7 @@ export default function InventoryPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
-            <div className="flex-1 overflow-y-auto space-y-4 pr-1 -mr-1">
+            <DialogBody className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="name" required>Item Name</Label>
@@ -751,9 +752,9 @@ export default function InventoryPage() {
                   rows={2}
                 />
               </div>
-            </div>
+            </DialogBody>
 
-            <DialogFooter className="mt-4 pt-4 border-t flex-shrink-0">
+            <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
@@ -790,7 +791,8 @@ export default function InventoryPage() {
               {stockDialog.item?.unit}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleStockSubmit(onStockSubmit)} className="space-y-4">
+          <form onSubmit={handleStockSubmit(onStockSubmit)} className="flex flex-col flex-1 min-h-0">
+            <DialogBody className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="stock-quantity" required>Quantity</Label>
               <Input
@@ -835,6 +837,7 @@ export default function InventoryPage() {
                 rows={2}
               />
             </div>
+            </DialogBody>
 
             <DialogFooter>
               <Button

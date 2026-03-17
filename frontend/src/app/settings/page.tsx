@@ -146,7 +146,7 @@ export default function SettingsPage() {
                 <CardTitle>Business Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <Label>Business Name</Label>
                     <Input
@@ -165,7 +165,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <Label>Phone Number</Label>
                     <Input
@@ -195,7 +195,7 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <Label>Currency</Label>
                     <Input
@@ -219,7 +219,7 @@ export default function SettingsPage() {
                 <CardTitle>Operating Hours</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <Label>Opening Time</Label>
                     <Input
@@ -294,7 +294,7 @@ export default function SettingsPage() {
               <CardTitle>M-PESA Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <Label>Paybill Number</Label>
                   <Input
@@ -390,7 +390,7 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div>
                   <Label>Points per {formData.currency || 'KES'} 100</Label>
                   <Input
@@ -430,7 +430,7 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">
                 Set default commission rates by role. Individual staff rates can be overridden in Staff Management.
               </p>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <Label>Attendant Rate (%)</Label>
                   <Input

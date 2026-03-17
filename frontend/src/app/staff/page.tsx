@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -234,56 +235,42 @@ export default function StaffPage() {
       />
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Staff</p>
-                <p className="text-2xl font-bold">{users.length}</p>
-              </div>
-              <Users className="h-8 w-8 text-muted-foreground" />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 mb-6">
+        <Card className="overflow-hidden border-0 shadow-md">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-700 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-blue-100">Total Staff</p>
+              <Users className="h-5 w-5 text-blue-200" />
             </div>
-          </CardContent>
+            <p className="text-2xl font-bold text-white">{users.length}</p>
+          </div>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Active</p>
-                <p className="text-2xl font-bold text-success-600">
-                  {users.filter((u) => u.is_active).length}
-                </p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-success-500" />
+        <Card className="overflow-hidden border-0 shadow-md">
+          <div className="bg-gradient-to-br from-green-500 to-green-700 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-green-100">Active</p>
+              <CheckCircle className="h-5 w-5 text-green-200" />
             </div>
-          </CardContent>
+            <p className="text-2xl font-bold text-white">{users.filter((u) => u.is_active).length}</p>
+          </div>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Managers</p>
-                <p className="text-2xl font-bold">
-                  {users.filter((u) => ['admin', 'manager'].includes(u.role)).length}
-                </p>
-              </div>
-              <Shield className="h-8 w-8 text-primary" />
+        <Card className="overflow-hidden border-0 shadow-md">
+          <div className="bg-gradient-to-br from-purple-500 to-purple-700 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-purple-100">Managers</p>
+              <Shield className="h-5 w-5 text-purple-200" />
             </div>
-          </CardContent>
+            <p className="text-2xl font-bold text-white">{users.filter((u) => ['admin', 'manager'].includes(u.role)).length}</p>
+          </div>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Attendants</p>
-                <p className="text-2xl font-bold">
-                  {users.filter((u) => u.role === 'attendant').length}
-                </p>
-              </div>
-              <UserCog className="h-8 w-8 text-muted-foreground" />
+        <Card className="overflow-hidden border-0 shadow-md">
+          <div className="bg-gradient-to-br from-orange-500 to-orange-700 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-orange-100">Attendants</p>
+              <UserCog className="h-5 w-5 text-orange-200" />
             </div>
-          </CardContent>
+            <p className="text-2xl font-bold text-white">{users.filter((u) => u.role === 'attendant').length}</p>
+          </div>
         </Card>
       </div>
 
@@ -308,8 +295,73 @@ export default function StaffPage() {
         />
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Mobile Cards */}
+      <div className="sm:hidden space-y-3 mb-4">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}><CardContent className="pt-4"><div className="h-16 animate-pulse bg-muted rounded" /></CardContent></Card>
+          ))
+        ) : filteredUsers.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center text-muted-foreground">
+              <UserCog className="h-10 w-10 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No staff found</p>
+              <Button onClick={() => handleOpenForm()} className="mt-4 gap-2" size="sm">
+                <Plus className="h-4 w-4" /> Add Staff
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredUsers.map((user) => (
+            <Card key={user.id} className="border-l-4 border-l-primary/60">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <UserAvatar name={user.name} src={user.avatar_url} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm">{user.name}</span>
+                      {user.id === currentUser?.id && <Badge variant="outline" className="text-xs">You</Badge>}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <Badge variant={getRoleBadgeVariant(user.role)} className="capitalize text-xs">{user.role}</Badge>
+                      {user.is_active ? (
+                        <Badge variant="success" className="text-xs gap-1"><CheckCircle className="h-3 w-3" />Active</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs gap-1"><XCircle className="h-3 w-3" />Inactive</Badge>
+                      )}
+                      <span className="text-xs text-muted-foreground">{(user as any).commission_rate || 0}% commission</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3">
+                      <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{user.email}</span>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon-sm"><MoreHorizontal className="h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleOpenForm(user)}>
+                        <Edit className="h-4 w-4 mr-2" />Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setDeleteDialog({ open: true, user })}
+                        disabled={user.id === currentUser?.id}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Table - desktop */}
+      <Card className="hidden sm:block">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -448,95 +500,78 @@ export default function StaffPage() {
                 : 'Enter the staff member details below'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" required>
-                Full Name
-              </Label>
-              <Input id="name" {...register('name')} placeholder="John Doe" />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name.message}</p>
-              )}
-            </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            <DialogBody className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name" required>Full Name</Label>
+                <Input id="name" {...register('name')} placeholder="John Doe" />
+                {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" required>
-                Email
-              </Label>
-              <Input id="email" type="email" {...register('email')} placeholder="john@example.com" />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="email" required>Email</Label>
+                <Input id="email" type="email" {...register('email')} placeholder="john@example.com" />
+                {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone" required>
-                Phone Number
-              </Label>
-              <Input id="phone" {...register('phone')} placeholder="0712 345 678" />
-              {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone.message}</p>
-              )}
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone" required>Phone Number</Label>
+                <Input id="phone" {...register('phone')} placeholder="0712 345 678" />
+                {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="commission_rate">Commission Rate (%)</Label>
-              <Input
-                id="commission_rate"
-                type="number"
-                min="0"
-                max="100"
-                step="0.5"
-                {...register('commission_rate', { valueAsNumber: true })}
-                placeholder="10"
-              />
-              <p className="text-xs text-muted-foreground">
-                Percentage of job total earned as commission (e.g., 10 for 10%)
-              </p>
-              {errors.commission_rate && (
-                <p className="text-sm text-destructive">{errors.commission_rate.message}</p>
-              )}
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="commission_rate">Commission Rate (%)</Label>
+                <Input
+                  id="commission_rate"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  {...register('commission_rate', { valueAsNumber: true })}
+                  placeholder="10"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Percentage of job total earned as commission (e.g., 10 for 10%)
+                </p>
+                {errors.commission_rate && (
+                  <p className="text-sm text-destructive">{errors.commission_rate.message}</p>
+                )}
+              </div>
 
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <SimpleSelect
-                value={watch('role')}
-                onValueChange={(value) => setValue('role', value as UserRole)}
-                options={userRoles.map((r) => ({
-                  value: r.value,
-                  label: `${r.label} - ${r.description}`,
-                }))}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <SimpleSelect
+                  value={watch('role')}
+                  onValueChange={(value) => setValue('role', value as UserRole)}
+                  options={userRoles.map((r) => ({
+                    value: r.value,
+                    label: `${r.label} - ${r.description}`,
+                  }))}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">
-                {formDialog.user ? 'New Password (leave blank to keep current)' : 'Password'}
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                {...register('password')}
-                placeholder={formDialog.user ? 'Enter new password' : 'Enter password'}
-              />
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">
+                  {formDialog.user ? 'New Password (leave blank to keep current)' : 'Password'}
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  {...register('password')}
+                  placeholder={formDialog.user ? 'Enter new password' : 'Enter password'}
+                />
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password.message}</p>
+                )}
+              </div>
+            </DialogBody>
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setFormDialog({ open: false })}
-              >
+              <Button type="button" variant="outline" onClick={() => setFormDialog({ open: false })}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-              >
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
                 {(createMutation.isPending || updateMutation.isPending) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}

@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogBody,
   DialogFooter,
   Button,
   Spinner,
@@ -110,11 +111,12 @@ export function ReceiptDialog({ jobId, isOpen, onClose }: ReceiptDialogProps) {
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex justify-center py-8">
+          <div className="flex justify-center px-6 py-8">
             <Spinner size="lg" />
           </div>
         ) : receipt ? (
-          <div className="space-y-4">
+          <>
+          <DialogBody>
             {/* Receipt Preview */}
             <div className="border rounded-lg p-4 bg-white text-sm font-mono">
               <div className="text-center mb-4">
@@ -204,36 +206,29 @@ export function ReceiptDialog({ jobId, isOpen, onClose }: ReceiptDialogProps) {
                 <p>Thank you for your business! 🚗✨</p>
               </div>
             </div>
+          </DialogBody>
 
-            <DialogFooter className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={handleDownload}
-                className="flex-1"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleWhatsAppShare}
-                disabled={isSending || !receipt.customer.phone}
-                className="flex-1"
-              >
-                <Share2 className="h-4 w-4 mr-2" />
-                WhatsApp
-              </Button>
-              <Button
-                onClick={handlePrint}
-                className="flex-1"
-              >
-                <Printer className="h-4 w-4 mr-2" />
-                Print
-              </Button>
-            </DialogFooter>
-          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleDownload}>
+              <Download className="h-4 w-4 mr-2" />
+              Download
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleWhatsAppShare}
+              disabled={isSending || !receipt.customer.phone}
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              WhatsApp
+            </Button>
+            <Button onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+          </DialogFooter>
+          </>
         ) : (
-          <p className="text-center text-muted-foreground py-8">
+          <p className="text-center text-muted-foreground px-6 py-8">
             No receipt data available
           </p>
         )}

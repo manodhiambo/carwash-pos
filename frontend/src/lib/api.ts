@@ -445,11 +445,18 @@ export const customersApi = {
     }
   },
 
-  addLoyaltyPoints: async (id: string, points: number, description?: string): Promise<ApiResponse<Customer>> => {
+  addLoyaltyPoints: async (
+    id: string,
+    points: number,
+    description?: string,
+    jobId?: string
+  ): Promise<ApiResponse<Customer>> => {
     try {
       const response = await apiClient.post<ApiResponse<Customer>>(`/customers/${id}/loyalty`, {
         points,
         description,
+        transaction_type: points > 0 ? 'earned' : 'redeemed',
+        ...(jobId ? { job_id: jobId } : {}),
       });
       return response.data;
     } catch (error) {
@@ -457,9 +464,16 @@ export const customersApi = {
     }
   },
 
-  redeemLoyaltyPoints: async (id: string, points: number): Promise<ApiResponse<{ discount: number }>> => {
+  redeemLoyaltyPoints: async (
+    id: string,
+    points: number,
+    jobId?: string
+  ): Promise<ApiResponse<{ discount: number; new_balance: number }>> => {
     try {
-      const response = await apiClient.post(`/customers/${id}/redeem`, { points });
+      const response = await apiClient.post(`/customers/${id}/redeem`, {
+        points,
+        ...(jobId ? { job_id: jobId } : {}),
+      });
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError<ApiError>);

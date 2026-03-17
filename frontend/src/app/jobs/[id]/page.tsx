@@ -399,7 +399,7 @@ export default function JobDetailPage() {
           <DialogHeader>
             <DialogTitle>Assign Staff</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 px-6 pb-4">
             <div>
               <Label>Select Staff Member</Label>
               <SimpleSelect
@@ -438,7 +438,7 @@ export default function JobDetailPage() {
           <DialogHeader>
             <DialogTitle>Add Note</DialogTitle>
           </DialogHeader>
-          <div>
+          <div className="px-6 pb-4">
             <Label>Note</Label>
             <Textarea
               value={noteText}

@@ -85,10 +85,12 @@ const DialogContent = React.forwardRef<
         )}
         {...props}
       >
+        {/* Drag handle on mobile */}
         <div className="flex-shrink-0 flex justify-center pt-3 pb-1 sm:hidden">
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
         </div>
-        <div className="flex-1 overflow-y-auto overscroll-contain p-6 pt-3 sm:pt-6">
+        {/* Content column — no scroll here; DialogBody handles scroll */}
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
           {children}
         </div>
         {showCloseButton && (
@@ -103,13 +105,15 @@ const DialogContent = React.forwardRef<
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
+/** Non-scrolling header — title stays visible while form body scrolls */
 const DialogHeader = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex flex-col space-y-1.5 text-center sm:text-left mb-4',
+      'flex-shrink-0 flex flex-col space-y-1.5 text-center sm:text-left',
+      'px-6 pt-5 sm:pt-6 pb-4',
       className
     )}
     {...props}
@@ -117,13 +121,39 @@ const DialogHeader = ({
 );
 DialogHeader.displayName = 'DialogHeader';
 
+/**
+ * Scrollable body — place form fields here.
+ * Usage:
+ *   <form onSubmit={…} className="flex flex-col flex-1 min-h-0">
+ *     <DialogBody>…fields…</DialogBody>
+ *     <DialogFooter>…buttons…</DialogFooter>
+ *   </form>
+ */
+const DialogBody = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      'flex-1 overflow-y-auto overscroll-contain',
+      'px-6 pb-2',
+      className
+    )}
+    {...props}
+  />
+);
+DialogBody.displayName = 'DialogBody';
+
+/** Non-scrolling sticky footer — always visible at the bottom */
 const DialogFooter = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2 pt-2',
+      'flex-shrink-0 border-t bg-background',
+      'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2',
+      'px-6 py-4',
       className
     )}
     {...props}
@@ -265,6 +295,7 @@ export {
   DialogTrigger,
   DialogContent,
   DialogHeader,
+  DialogBody,
   DialogFooter,
   DialogTitle,
   DialogDescription,

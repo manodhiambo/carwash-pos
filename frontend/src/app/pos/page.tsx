@@ -3,7 +3,7 @@
 import React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { jobsApi, paymentsApi, receiptsApi } from '@/lib/api';
+import { jobsApi, paymentsApi, receiptsApi, customersApi } from '@/lib/api';
 import { formatCurrency, normalizePhoneNumber, cn } from '@/lib/utils';
 import { PageContainer, PageHeader } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -40,9 +40,15 @@ import {
   ChevronRight,
   MessageCircle,
   Eye,
+  Star,
+  Sparkles,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Job, PaymentMethod } from '@/types';
+import { Job, PaymentMethod, Customer } from '@/types';
+
+// 1 point earned per KES 1 paid; 1 point = KES 1 discount
+const POINTS_PER_KES = 1;
+const KES_PER_POINT = 1;
 
 const paymentMethods: { value: PaymentMethod; label: string; icon: React.ElementType }[] = [
   { value: 'cash', label: 'Cash', icon: Banknote },
@@ -71,7 +77,15 @@ export default function POSPage() {
   const [successDialog, setSuccessDialog] = React.useState<{
     open: boolean;
     job?: Job;
+    pointsEarned?: number;
+    newPointsBalance?: number;
   }>({ open: false });
+
+  // Loyalty points state
+  const [loyaltyCustomer, setLoyaltyCustomer] = React.useState<Customer | null>(null);
+  const [pointsToRedeem, setPointsToRedeem] = React.useState('');
+  const [isRedeemingPoints, setIsRedeemingPoints] = React.useState(false);
+  const [pointsRedeemed, setPointsRedeemed] = React.useState(0);
 
   // Fetch unpaid completed jobs
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
@@ -98,6 +112,20 @@ export default function POSPage() {
       setSelectedJob(preselectedJob.data);
     }
   }, [preselectedJob]);
+
+  // Load customer loyalty info whenever a job is selected
+  React.useEffect(() => {
+    setLoyaltyCustomer(null);
+    setPointsToRedeem('');
+    setPointsRedeemed(0);
+
+    const customerId = selectedJob?.customer?.id || (selectedJob as any)?.customer_id;
+    if (!customerId) return;
+
+    customersApi.getById(String(customerId))
+      .then((res) => setLoyaltyCustomer(res.data))
+      .catch(() => setLoyaltyCustomer(null));
+  }, [selectedJob?.id]);
 
   const unpaidJobs = jobsData?.data || [];
 
@@ -129,7 +157,7 @@ export default function POSPage() {
         return { ...response, type: 'direct' };
       }
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (data.type === 'mpesa') {
         // Show M-Pesa waiting dialog
         const mpesaData = data.data as { checkout_request_id: string; merchant_request_id: string };
@@ -138,16 +166,26 @@ export default function POSPage() {
           status: 'pending',
           checkoutRequestId: mpesaData.checkout_request_id,
         });
-        // Start polling for status
         pollMpesaStatus(mpesaData.checkout_request_id);
       } else {
-        // Direct payment success
+        // Award loyalty points for direct payments
+        const earned = await awardLoyaltyPoints(selectedJob!);
+        const newBalance = loyaltyCustomer
+          ? (loyaltyCustomer.loyalty_points || 0) - pointsRedeemed + earned
+          : 0;
+
         queryClient.invalidateQueries({ queryKey: ['unpaid-jobs'] });
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
-        setSuccessDialog({ open: true, job: selectedJob! });
+        setSuccessDialog({
+          open: true,
+          job: selectedJob!,
+          pointsEarned: earned,
+          newPointsBalance: loyaltyCustomer ? newBalance : undefined,
+        });
         setSelectedJob(null);
         setAmountTendered('');
         setReferenceNumber('');
+        setPointsRedeemed(0);
       }
       setIsProcessing(false);
     },
@@ -198,6 +236,62 @@ export default function POSPage() {
     };
 
     poll();
+  };
+
+  // Redeem loyalty points — applies a discount to the job
+  const handleRedeemPoints = async () => {
+    if (!selectedJob || !loyaltyCustomer || !pointsToRedeem) return;
+    const pts = parseInt(pointsToRedeem, 10);
+    if (isNaN(pts) || pts <= 0) { toast.error('Enter a valid number of points'); return; }
+    if (pts > (loyaltyCustomer.loyalty_points || 0)) {
+      toast.error(`Customer only has ${loyaltyCustomer.loyalty_points} points`);
+      return;
+    }
+    const maxRedeemable = Math.floor(selectedJob.total_amount / KES_PER_POINT);
+    if (pts > maxRedeemable) {
+      toast.error(`Maximum redeemable for this bill is ${maxRedeemable} points`);
+      return;
+    }
+
+    setIsRedeemingPoints(true);
+    try {
+      await customersApi.redeemLoyaltyPoints(
+        loyaltyCustomer.id,
+        pts,
+        selectedJob.id
+      );
+      // Refetch job to get updated total after discount
+      const updatedJob = await jobsApi.getById(selectedJob.id);
+      setSelectedJob(updatedJob.data);
+      setLoyaltyCustomer((prev) =>
+        prev ? { ...prev, loyalty_points: (prev.loyalty_points || 0) - pts } : null
+      );
+      setPointsRedeemed((prev) => prev + pts);
+      setPointsToRedeem('');
+      toast.success(`${pts} points redeemed! KES ${pts * KES_PER_POINT} discount applied.`);
+    } catch (err: any) {
+      toast.error(err?.error || 'Failed to redeem points');
+    } finally {
+      setIsRedeemingPoints(false);
+    }
+  };
+
+  // Award points after successful payment
+  const awardLoyaltyPoints = async (job: Job): Promise<number> => {
+    if (!loyaltyCustomer?.id) return 0;
+    const earned = Math.floor(job.total_amount * POINTS_PER_KES);
+    if (earned <= 0) return 0;
+    try {
+      const res = await customersApi.addLoyaltyPoints(
+        loyaltyCustomer.id,
+        earned,
+        `Points earned for Job #${job.job_number}`,
+        job.id
+      );
+      return earned;
+    } catch {
+      return 0; // Don't block payment on points failure
+    }
   };
 
   // Handle payment
@@ -371,6 +465,58 @@ export default function POSPage() {
                       {formatCurrency(selectedJob.total_amount)}
                     </span>
                   </div>
+
+                  {/* Loyalty Points */}
+                  {loyaltyCustomer && (loyaltyCustomer.loyalty_points || 0) > 0 && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-yellow-700">
+                          <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+                          {loyaltyCustomer.loyalty_points?.toLocaleString()} points available
+                        </div>
+                        <span className="text-xs text-yellow-600">
+                          Worth KES {loyaltyCustomer.loyalty_points?.toLocaleString()}
+                        </span>
+                      </div>
+                      {pointsRedeemed > 0 && (
+                        <p className="text-xs text-green-700 font-medium mb-2">
+                          ✓ {pointsRedeemed.toLocaleString()} pts redeemed (KES {(pointsRedeemed * KES_PER_POINT).toLocaleString()} off)
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Points to redeem"
+                          value={pointsToRedeem}
+                          onChange={(e) => setPointsToRedeem(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleRedeemPoints}
+                          disabled={isRedeemingPoints || !pointsToRedeem}
+                          className="shrink-0 border-yellow-400 text-yellow-700 hover:bg-yellow-100"
+                        >
+                          {isRedeemingPoints ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            'Redeem'
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Points to earn preview */}
+                  {loyaltyCustomer !== null && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+                      <Sparkles className="h-4 w-4 text-blue-500 shrink-0" />
+                      <span className="text-xs text-blue-700">
+                        Customer will earn <strong>{Math.floor(selectedJob.total_amount * POINTS_PER_KES).toLocaleString()} points</strong> on payment
+                      </span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -510,7 +656,7 @@ export default function POSPage() {
               M-Pesa Payment
             </DialogTitle>
           </DialogHeader>
-          <div className="py-6">
+          <div className="px-6 py-6">
             {mpesaDialog.status === 'pending' && (
               <div className="text-center space-y-4">
                 <div className="h-20 w-20 mx-auto rounded-full bg-green-100 flex items-center justify-center">
@@ -564,7 +710,7 @@ export default function POSPage() {
           <DialogHeader>
             <DialogTitle className="text-center">Payment Successful!</DialogTitle>
           </DialogHeader>
-          <div className="py-6 text-center">
+          <div className="px-6 py-6 text-center">
             <div className="h-20 w-20 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-4">
               <CheckCircle className="h-10 w-10 text-green-600" />
             </div>
@@ -576,6 +722,19 @@ export default function POSPage() {
                 <p className="text-sm text-muted-foreground">
                   Payment received for {successDialog.job.vehicle?.registration_number}
                 </p>
+              </div>
+            )}
+            {successDialog.pointsEarned != null && successDialog.pointsEarned > 0 && (
+              <div className="flex items-center justify-center gap-2 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg mt-3">
+                <Sparkles className="h-4 w-4 text-yellow-500 shrink-0" />
+                <span className="text-sm font-semibold text-yellow-700">
+                  +{successDialog.pointsEarned.toLocaleString()} loyalty points earned!
+                </span>
+                {successDialog.newPointsBalance != null && (
+                  <span className="text-xs text-yellow-600 ml-1">
+                    Balance: {successDialog.newPointsBalance.toLocaleString()}
+                  </span>
+                )}
               </div>
             )}
           </div>

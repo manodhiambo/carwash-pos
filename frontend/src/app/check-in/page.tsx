@@ -42,6 +42,8 @@ import {
   Percent,
   TrendingUp,
   ExternalLink,
+  Star,
+  Gift,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { VehicleType, Service, JobPriority, Bay, User, Job } from '@/types';
@@ -101,6 +103,9 @@ export default function CheckInPage() {
   const [customPrices, setCustomPrices] = React.useState<Record<string, number>>({});
   const [commissionRates, setCommissionRates] = React.useState<Record<string, number>>({});
 
+  // Loyalty points for returning customer
+  const [customerLoyaltyPoints, setCustomerLoyaltyPoints] = React.useState<number | null>(null);
+
   // Duplicate detection state
   const [activeJob, setActiveJob] = React.useState<Job | null>(null);
   const [showDuplicateModal, setShowDuplicateModal] = React.useState(false);
@@ -157,6 +162,7 @@ export default function CheckInPage() {
     setSearchingVehicle(true);
     setFoundVehicle(null);
     setActiveJob(null);
+    setCustomerLoyaltyPoints(null);
 
     const cleanReg = registrationNumber.replace(/\s/g, '').toUpperCase();
 
@@ -181,6 +187,10 @@ export default function CheckInPage() {
         if (vehicle.customer) {
           setValue('customer_name', vehicle.customer.name);
           setValue('customer_phone', vehicle.customer.phone);
+          // Capture loyalty points for returning customer
+          if (typeof (vehicle.customer as any).loyalty_points === 'number') {
+            setCustomerLoyaltyPoints((vehicle.customer as any).loyalty_points);
+          }
         }
         setFoundVehicle(true);
       } else {
@@ -426,6 +436,22 @@ export default function CheckInPage() {
                         <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                         Already checked in — Job #{(activeJob as any).job_no || (activeJob as any).job_number}. Tap to manage.
                       </button>
+                    )}
+
+                    {/* Loyalty points banner for returning customer */}
+                    {foundVehicle === true && customerLoyaltyPoints !== null && customerLoyaltyPoints > 0 && !activeJob && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+                        <div className="text-sm">
+                          <span className="font-semibold text-yellow-700">
+                            {customerLoyaltyPoints.toLocaleString()} loyalty points
+                          </span>
+                          <span className="text-yellow-600"> available</span>
+                          <span className="text-yellow-500 text-xs ml-1">
+                            (worth KES {customerLoyaltyPoints.toLocaleString()})
+                          </span>
+                        </div>
+                      </div>
                     )}
                     {errors.registration_number && (
                       <p className="text-sm text-destructive">
@@ -804,6 +830,26 @@ export default function CheckInPage() {
                   </span>
                 </div>
 
+                {/* Loyalty Points Estimate */}
+                {calculateTotal() > 0 && foundVehicle === true && (
+                  <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-yellow-700">
+                        <Gift className="h-4 w-4" />
+                        Points to Earn
+                      </div>
+                      <span className="font-bold text-yellow-700">
+                        +{Math.floor(calculateTotal())} pts
+                      </span>
+                    </div>
+                    {customerLoyaltyPoints !== null && customerLoyaltyPoints > 0 && (
+                      <div className="text-xs text-yellow-600 mt-1">
+                        Balance after visit: {(customerLoyaltyPoints + Math.floor(calculateTotal())).toLocaleString()} pts
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Commission Preview */}
                 {calculateCommission() > 0 && (
                   <div className="p-3 bg-green-50 rounded-lg border border-green-200">
@@ -862,7 +908,7 @@ export default function CheckInPage() {
           </DialogHeader>
 
           {activeJob && (
-            <div className="space-y-4">
+            <div className="space-y-4 px-6 pb-6">
               {/* Existing Job Info */}
               <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl">
                 <div className="flex items-center justify-between mb-3">

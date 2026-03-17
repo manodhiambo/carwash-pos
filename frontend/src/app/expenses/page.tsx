@@ -14,6 +14,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogBody,
   DialogFooter,
   Label,
   Input,
@@ -356,14 +357,14 @@ export default function ExpensesPage() {
 
       {/* Add Expense Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Add New Expense</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            <DialogBody className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                   <Label>Category *</Label>
                   <SimpleSelect
                     value={formData.category}
@@ -371,7 +372,7 @@ export default function ExpensesPage() {
                     options={categoryOptions.filter(o => o.value)}
                   />
                 </div>
-                <div>
+                <div className="space-y-1.5">
                   <Label>Expense Date *</Label>
                   <Input
                     type="date"
@@ -382,7 +383,7 @@ export default function ExpensesPage() {
                 </div>
               </div>
 
-              <div>
+              <div className="space-y-1.5">
                 <Label>Description *</Label>
                 <Input
                   value={formData.description}
@@ -392,8 +393,8 @@ export default function ExpensesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                   <Label>Amount (KES) *</Label>
                   <Input
                     type="number"
@@ -404,7 +405,7 @@ export default function ExpensesPage() {
                     required
                   />
                 </div>
-                <div>
+                <div className="space-y-1.5">
                   <Label>Payment Method *</Label>
                   <SimpleSelect
                     value={formData.payment_method}
@@ -414,8 +415,8 @@ export default function ExpensesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                   <Label>Vendor</Label>
                   <Input
                     value={formData.vendor}
@@ -423,7 +424,7 @@ export default function ExpensesPage() {
                     placeholder="e.g., AutoChem Supplies"
                   />
                 </div>
-                <div>
+                <div className="space-y-1.5">
                   <Label>Reference</Label>
                   <Input
                     value={formData.reference}
@@ -433,7 +434,7 @@ export default function ExpensesPage() {
                 </div>
               </div>
 
-              <div>
+              <div className="space-y-1.5">
                 <Label>Notes</Label>
                 <Textarea
                   value={formData.notes}
@@ -442,14 +443,10 @@ export default function ExpensesPage() {
                   placeholder="Additional notes..."
                 />
               </div>
-            </div>
+            </DialogBody>
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsAddDialogOpen(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={createMutation.isPending}>

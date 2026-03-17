@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -283,8 +284,82 @@ export default function CustomersPage() {
         </Card>
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Mobile Cards */}
+      <div className="sm:hidden space-y-3 mb-4">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}><CardContent className="pt-4"><div className="h-16 animate-pulse bg-muted rounded" /></CardContent></Card>
+          ))
+        ) : customers.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center text-muted-foreground">
+              <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No customers found</p>
+              <Button onClick={() => handleOpenForm()} className="mt-4 gap-2" size="sm">
+                <Plus className="h-4 w-4" /> Add Customer
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          customers.map((customer) => (
+            <Card key={customer.id} className="border-l-4 border-l-primary/60">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <UserAvatar name={customer.name} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-sm">{customer.name}</span>
+                      {getCustomerTypeIcon(customer.customer_type)}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <Badge
+                        variant={customer.customer_type === 'vip' ? 'warning' : customer.customer_type === 'corporate' ? 'info' : 'secondary'}
+                        className="capitalize text-xs"
+                      >
+                        {customer.customer_type || 'individual'}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Car className="h-3 w-3" />{customer.vehicles?.length || 0} vehicles
+                      </span>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Gift className="h-3 w-3 text-primary" />{customer.loyalty_points} pts
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                      <Phone className="h-3 w-3" />{customer.phone}
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon-sm"><MoreHorizontal className="h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem asChild>
+                        <Link href={`/customers/${customer.id}`}>
+                          <Eye className="h-4 w-4 mr-2" />View Details
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleOpenForm(customer)}>
+                        <Edit className="h-4 w-4 mr-2" />Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setDeleteDialog({ open: true, customer })}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Table - desktop */}
+      <Card className="hidden sm:block">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -449,66 +524,51 @@ export default function CustomersPage() {
                 : 'Enter the customer details below'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" required>
-                Name
-              </Label>
-              <Input id="name" {...register('name')} placeholder="John Doe" />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name.message}</p>
-              )}
-            </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            <DialogBody className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name" required>Name</Label>
+                <Input id="name" {...register('name')} placeholder="John Doe" />
+                {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone" required>
-                Phone Number
-              </Label>
-              <Input id="phone" {...register('phone')} placeholder="0712 345 678" />
-              {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone.message}</p>
-              )}
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone" required>Phone Number</Label>
+                <Input id="phone" {...register('phone')} placeholder="0712 345 678" />
+                {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" {...register('email')} placeholder="john@example.com" />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" {...register('email')} placeholder="john@example.com" />
+                {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+              </div>
 
-            <div className="space-y-2">
-              <Label>Customer Type</Label>
-              <SimpleSelect
-                value={watch('customer_type')}
-                onValueChange={(value) => setValue('customer_type', value as CustomerType)}
-                options={customerTypes}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label>Customer Type</Label>
+                <SimpleSelect
+                  value={watch('customer_type')}
+                  onValueChange={(value) => setValue('customer_type', value as CustomerType)}
+                  options={customerTypes}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input id="address" {...register('address')} placeholder="Address" />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input id="address" {...register('address')} placeholder="Address" />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea id="notes" {...register('notes')} placeholder="Any notes..." rows={3} />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea id="notes" {...register('notes')} placeholder="Any notes..." rows={3} />
+              </div>
+            </DialogBody>
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setFormDialog({ open: false })}
-              >
+              <Button type="button" variant="outline" onClick={() => setFormDialog({ open: false })}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-              >
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
                 {(createMutation.isPending || updateMutation.isPending) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}

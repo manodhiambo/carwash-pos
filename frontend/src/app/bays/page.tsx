@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogBody,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -486,59 +487,40 @@ export default function BaysPage() {
               {formDialog.bay ? 'Update bay information' : 'Enter the bay details below'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" required>
-                Bay Name
-              </Label>
-              <Input id="name" {...register('name')} placeholder="Bay 1" />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name.message}</p>
-              )}
-            </div>
-
-            <div className="grid gap-4 grid-cols-2">
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            <DialogBody className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="bay_number" required>
-                  Bay Number
-                </Label>
-                <Input
-                  id="bay_number"
-                  type="number"
-                  {...register('bay_number', { valueAsNumber: true })}
+                <Label htmlFor="name" required>Bay Name</Label>
+                <Input id="name" {...register('name')} placeholder="Bay 1" />
+                {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              </div>
+
+              <div className="grid gap-4 grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="bay_number" required>Bay Number</Label>
+                  <Input id="bay_number" type="number" {...register('bay_number', { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="capacity">Capacity</Label>
+                  <Input id="capacity" type="number" {...register('capacity', { valueAsNumber: true })} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Bay Type</Label>
+                <SimpleSelect
+                  value={watch('bay_type')}
+                  onValueChange={(value) => setValue('bay_type', value as BayType)}
+                  options={bayTypes}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="capacity">Capacity</Label>
-                <Input
-                  id="capacity"
-                  type="number"
-                  {...register('capacity', { valueAsNumber: true })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Bay Type</Label>
-              <SimpleSelect
-                value={watch('bay_type')}
-                onValueChange={(value) => setValue('bay_type', value as BayType)}
-                options={bayTypes}
-              />
-            </div>
+            </DialogBody>
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setFormDialog({ open: false })}
-              >
+              <Button type="button" variant="outline" onClick={() => setFormDialog({ open: false })}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-              >
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
                 {(createMutation.isPending || updateMutation.isPending) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
@@ -558,7 +540,7 @@ export default function BaysPage() {
               Update the status for {statusDialog.bay?.name}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-3 py-4">
+          <div className="grid grid-cols-2 gap-3 px-6 pb-6">
             {bayStatuses.map((status) => (
               <Button
                 key={status.value}
