@@ -172,9 +172,9 @@ export function Header({ title, showSearch = false }: HeaderProps) {
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
-        {/* Theme toggle */}
-        <Button variant="ghost" size="icon" onClick={toggleTheme}>
+      <div className="flex items-center gap-1">
+        {/* Theme toggle — hidden on mobile to save space */}
+        <Button variant="ghost" size="icon" onClick={toggleTheme} className="hidden sm:flex">
           {theme === 'dark' ? (
             <Sun className="h-5 w-5" />
           ) : (
@@ -242,56 +242,52 @@ export function Header({ title, showSearch = false }: HeaderProps) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* User menu */}
+        {/* Profile / Account menu — always visible, logout at the top */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 px-2 gap-2">
+            <Button variant="ghost" size="icon" className="relative rounded-full">
               <UserAvatar
                 name={user?.name || 'User'}
                 src={user?.avatar_url}
                 size="sm"
               />
-              <div className="hidden md:flex flex-col items-start">
-                <span className="text-sm font-medium">{user?.name || 'User'}</span>
-                <span className="text-xs text-muted-foreground capitalize">
-                  {user?.role || 'Role'}
-                </span>
-              </div>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
+            {/* User info */}
             <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
+              <div className="flex items-center gap-3">
+                <UserAvatar name={user?.name || 'User'} src={user?.avatar_url} size="sm" />
+                <div className="flex flex-col min-w-0">
+                  <p className="text-sm font-semibold truncate">{user?.name}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+                </div>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/profile">
-                <User className="mr-2 h-4 w-4" />
-                Profile
-              </Link>
+            {/* Logout first — most needed on mobile */}
+            <DropdownMenuItem
+              onClick={() => logout()}
+              className="text-destructive focus:text-destructive font-medium"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href="/settings">
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/help">
-                <HelpCircle className="mr-2 h-4 w-4" />
-                Help & Support
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => logout()}
-              className="text-destructive focus:text-destructive"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
+            {/* Theme toggle in menu on mobile */}
+            <DropdownMenuItem onClick={toggleTheme} className="sm:hidden">
+              {theme === 'dark' ? (
+                <Sun className="mr-2 h-4 w-4" />
+              ) : (
+                <Moon className="mr-2 h-4 w-4" />
+              )}
+              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
