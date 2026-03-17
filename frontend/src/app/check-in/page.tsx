@@ -23,17 +23,29 @@ import {
   Car,
   Search,
   User as UserIcon,
-  Phone,
   Wrench,
   Clock,
-  DollarSign,
   AlertCircle,
   CheckCircle,
   Loader2,
   Plus,
+  Percent,
+  TrendingUp,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { VehicleType, Service, JobPriority, Bay, User } from '@/types';
+
+const PRESET_COMMISSION_RATES = [10, 15, 20, 25, 30, 35, 40, 45, 50];
+
+// Default commission rates by service name keywords
+const getDefaultCommissionRate = (serviceName: string): number => {
+  const name = serviceName.toLowerCase();
+  if (name.includes('motorbike') || name.includes('motorcycle') || name.includes('bike')) return 40;
+  if (name.includes('truck') || name.includes('lorry') || name.includes('trailer')) return 25;
+  if (name.includes('bus') || name.includes('matatu') || name.includes('van')) return 25;
+  if (name.includes('suv') || name.includes('4x4') || name.includes('pickup')) return 35;
+  return 30; // default for saloon/standard wash
+};
 
 const vehicleTypes = [
   { value: 'saloon', label: 'Sedan / Saloon' },
@@ -76,6 +88,7 @@ export default function CheckInPage() {
   const [foundVehicle, setFoundVehicle] = React.useState<boolean | null>(null);
   const [selectedServices, setSelectedServices] = React.useState<Set<string>>(new Set());
   const [customPrices, setCustomPrices] = React.useState<Record<string, number>>({});
+  const [commissionRates, setCommissionRates] = React.useState<Record<string, number>>({});
 
   const {
     register,
@@ -159,9 +172,34 @@ export default function CheckInPage() {
       newSelected.delete(serviceId);
     } else {
       newSelected.add(serviceId);
+      // Auto-set default commission rate when service is selected
+      if (!commissionRates[serviceId]) {
+        const service = services.find((s) => String(s.id) === serviceId);
+        if (service) {
+          setCommissionRates((prev) => ({
+            ...prev,
+            [serviceId]: getDefaultCommissionRate(service.name),
+          }));
+        }
+      }
     }
     setSelectedServices(newSelected);
     setValue('services', Array.from(newSelected));
+  };
+
+  // Calculate total commission
+  const calculateCommission = () => {
+    let total = 0;
+    selectedServices.forEach((serviceId) => {
+      const service = services.find((s) => String(s.id) === serviceId);
+      if (service) {
+        const price = getServicePrice(service);
+        const displayPrice = price > 0 ? price : (customPrices[serviceId] || 0);
+        const rate = commissionRates[serviceId] || 0;
+        total += (displayPrice * rate) / 100;
+      }
+    });
+    return total;
   };
 
   // Calculate total price
@@ -426,23 +464,57 @@ export default function CheckInPage() {
                                     </div>
                                   </div>
                                 </div>
-                                <div className="font-semibold">
-                                  {hasVariablePrice ? 'Custom' : formatCurrency(price)}
+                                <div className="text-right">
+                                  <div className="font-semibold">
+                                    {hasVariablePrice ? 'Custom' : formatCurrency(price)}
+                                  </div>
+                                  {isSelected && commissionRates[serviceIdStr] && (
+                                    <div className="text-xs text-green-600 font-medium flex items-center gap-0.5 justify-end">
+                                      <Percent className="h-3 w-3" />
+                                      {commissionRates[serviceIdStr]}% commission
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                              {isSelected && hasVariablePrice && (
-                                <div className="ml-10" onClick={(e) => e.stopPropagation()}>
-                                  <Input
-                                    type="number"
-                                    placeholder="Enter price (KES)"
-                                    value={customPrices[serviceIdStr] || ''}
-                                    onChange={(e) =>
-                                      setCustomPrices((prev) => ({
-                                        ...prev,
-                                        [serviceIdStr]: parseFloat(e.target.value) || 0,
-                                      }))
-                                    }
-                                  />
+                              {isSelected && (
+                                <div className="ml-10 space-y-2" onClick={(e) => e.stopPropagation()}>
+                                  {hasVariablePrice && (
+                                    <Input
+                                      type="number"
+                                      placeholder="Enter price (KES)"
+                                      value={customPrices[serviceIdStr] || ''}
+                                      onChange={(e) =>
+                                        setCustomPrices((prev) => ({
+                                          ...prev,
+                                          [serviceIdStr]: parseFloat(e.target.value) || 0,
+                                        }))
+                                      }
+                                    />
+                                  )}
+                                  <div className="flex flex-wrap gap-1 items-center">
+                                    <span className="text-xs text-muted-foreground mr-1 flex items-center gap-1">
+                                      <Percent className="h-3 w-3" /> Commission:
+                                    </span>
+                                    {PRESET_COMMISSION_RATES.map((rate) => (
+                                      <button
+                                        key={rate}
+                                        type="button"
+                                        onClick={() =>
+                                          setCommissionRates((prev) => ({
+                                            ...prev,
+                                            [serviceIdStr]: rate,
+                                          }))
+                                        }
+                                        className={`px-2 py-0.5 text-xs rounded-full border transition-all ${
+                                          commissionRates[serviceIdStr] === rate
+                                            ? 'bg-green-600 text-white border-green-600'
+                                            : 'border-border text-muted-foreground hover:border-green-600 hover:text-green-600'
+                                        }`}
+                                      >
+                                        {rate}%
+                                      </button>
+                                    ))}
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -632,6 +704,24 @@ export default function CheckInPage() {
                     {formatCurrency(calculateTotal())}
                   </span>
                 </div>
+
+                {/* Commission Preview */}
+                {calculateCommission() > 0 && (
+                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-green-700">
+                        <TrendingUp className="h-4 w-4" />
+                        Worker Commission
+                      </div>
+                      <span className="font-bold text-green-700">
+                        {formatCurrency(calculateCommission())}
+                      </span>
+                    </div>
+                    <div className="text-xs text-green-600 mt-1">
+                      Based on selected commission rates
+                    </div>
+                  </div>
+                )}
 
                 {/* Submit Button */}
                 <Button

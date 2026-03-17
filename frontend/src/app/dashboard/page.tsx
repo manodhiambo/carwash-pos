@@ -158,7 +158,7 @@ export default function DashboardPage() {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 mb-8">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 mb-6">
         {metricsLoading ? (
           <>
             {Array.from({ length: 4 }).map((_, i) => (
@@ -172,42 +172,76 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            <StatCard
-              title="Today's Revenue"
-              value={formatCurrency(dashboardData?.revenueToday?.total || 0)}
-              icon={<DollarSign className="h-6 w-6" />}
-              description="Cash + M-Pesa + Card"
-            />
-            <StatCard
-              title="Cars Serviced"
-              value={dashboardData?.carsServicedToday || 0}
-              icon={<Car className="h-6 w-6" />}
-              description="today"
-            />
-            <StatCard
-              title="Active Jobs"
-              value={dashboardData?.activeJobs || 0}
-              icon={<Clock className="h-6 w-6" />}
-              description="in progress"
-            />
-            <StatCard
-              title="Staff on Duty"
-              value={dashboardData?.staffOnDuty || 0}
-              icon={<Wrench className="h-6 w-6" />}
-              description="attendants"
-            />
+            <Card className="overflow-hidden border-0 shadow-md">
+              <div className="bg-gradient-to-br from-blue-500 to-blue-700 p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs sm:text-sm text-blue-100 font-medium">Today&apos;s Revenue</p>
+                  <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+                    <DollarSign className="h-4 w-4 text-white" />
+                  </div>
+                </div>
+                <p className="text-xl sm:text-2xl font-bold text-white">
+                  {formatCurrency(dashboardData?.revenueToday?.total || 0)}
+                </p>
+                <p className="text-xs text-blue-200 mt-1">Cash + M-Pesa + Card</p>
+              </div>
+            </Card>
+            <Card className="overflow-hidden border-0 shadow-md">
+              <div className="bg-gradient-to-br from-green-500 to-green-700 p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs sm:text-sm text-green-100 font-medium">Cars Serviced</p>
+                  <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+                    <Car className="h-4 w-4 text-white" />
+                  </div>
+                </div>
+                <p className="text-xl sm:text-2xl font-bold text-white">
+                  {dashboardData?.carsServicedToday || 0}
+                </p>
+                <p className="text-xs text-green-200 mt-1">Completed today</p>
+              </div>
+            </Card>
+            <Card className="overflow-hidden border-0 shadow-md">
+              <div className="bg-gradient-to-br from-orange-500 to-orange-700 p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs sm:text-sm text-orange-100 font-medium">Active Jobs</p>
+                  <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+                    <Clock className="h-4 w-4 text-white" />
+                  </div>
+                </div>
+                <p className="text-xl sm:text-2xl font-bold text-white">
+                  {dashboardData?.activeJobs || 0}
+                </p>
+                <p className="text-xs text-orange-200 mt-1">In progress now</p>
+              </div>
+            </Card>
+            <Card className="overflow-hidden border-0 shadow-md">
+              <div className="bg-gradient-to-br from-purple-500 to-purple-700 p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs sm:text-sm text-purple-100 font-medium">Staff on Duty</p>
+                  <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+                    <Wrench className="h-4 w-4 text-white" />
+                  </div>
+                </div>
+                <p className="text-xl sm:text-2xl font-bold text-white">
+                  {dashboardData?.staffOnDuty || 0}
+                </p>
+                <p className="text-xs text-purple-200 mt-1">Attendants working</p>
+              </div>
+            </Card>
           </>
         )}
       </div>
 
       {/* Commission Summary */}
       {isAdminOrManager && allCommissionSummaries?.data && (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-2 mb-8">
+        <div className="grid grid-cols-2 gap-4 mb-6">
           <Link href="/staff-commissions">
-            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+            <Card className="hover:shadow-md transition-all cursor-pointer border-l-4 border-l-yellow-400">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Pending Commissions</CardTitle>
-                <Clock className="h-4 w-4 text-yellow-600" />
+                <div className="h-8 w-8 rounded-full bg-yellow-100 flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-yellow-600" />
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-yellow-600">
@@ -225,10 +259,12 @@ export default function DashboardPage() {
             </Card>
           </Link>
           <Link href="/staff-commissions">
-            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+            <Card className="hover:shadow-md transition-all cursor-pointer border-l-4 border-l-green-400">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Paid This Month</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
@@ -247,35 +283,45 @@ export default function DashboardPage() {
       )}
 
       {!isAdminOrManager && myCommissions && (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-2 mb-8">
-          <Link href="/my-commissions">
-            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">My Pending</CardTitle>
-                <Clock className="h-4 w-4 text-yellow-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">
-                  {formatCurrency(myCommissions.pending_commission || 0)}
-                </div>
-                <p className="text-xs text-muted-foreground">{myCommissions.total_jobs || 0} jobs this month</p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/my-commissions">
-            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">My Paid</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(myCommissions.paid_commission || 0)}
-                </div>
-                <p className="text-xs text-muted-foreground">Commissions received</p>
-              </CardContent>
-            </Card>
-          </Link>
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            My Commission Earnings
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <Link href="/my-commissions">
+              <Card className="hover:shadow-md transition-all cursor-pointer border-l-4 border-l-yellow-400">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs text-muted-foreground font-medium">Pending Payout</p>
+                    <div className="h-7 w-7 rounded-full bg-yellow-100 flex items-center justify-center">
+                      <Clock className="h-3 w-3 text-yellow-600" />
+                    </div>
+                  </div>
+                  <div className="text-xl font-bold text-yellow-600">
+                    {formatCurrency(parseFloat(String(myCommissions.pending_commission || 0)))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{myCommissions.total_jobs || 0} jobs this month</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/my-commissions">
+              <Card className="hover:shadow-md transition-all cursor-pointer border-l-4 border-l-green-400">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs text-muted-foreground font-medium">Total Received</p>
+                    <div className="h-7 w-7 rounded-full bg-green-100 flex items-center justify-center">
+                      <CheckCircle className="h-3 w-3 text-green-600" />
+                    </div>
+                  </div>
+                  <div className="text-xl font-bold text-green-600">
+                    {formatCurrency(parseFloat(String(myCommissions.paid_commission || 0)))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Commissions received</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
         </div>
       )}
 

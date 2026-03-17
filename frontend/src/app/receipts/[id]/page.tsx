@@ -10,14 +10,13 @@ import { receiptsApi } from '@/lib/api';
 import {
   ArrowLeft,
   Printer,
-  Download,
-  Send,
   Share2,
   Copy,
   CheckCircle,
   Car,
   AlertTriangle,
   MessageCircle,
+  Mail,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -198,8 +197,33 @@ export default function ReceiptPage() {
       const response = await receiptsApi.getWhatsAppLink(jobId);
       window.open(response.data.whatsapp_url, '_blank');
     } catch (err: any) {
-      toast.error(err?.error || 'Could not generate WhatsApp link. Customer may not have a phone number.');
+      // Fallback: build a basic WhatsApp message if customer phone is available
+      if (receipt?.customer?.phone) {
+        const phone = receipt.customer.phone.replace(/\D/g, '');
+        const message = `Hi ${receipt.customer.name || 'Customer'}, here is your receipt from ${receipt.business.name}.\n\nReceipt #: ${receipt.receiptNumber}\nDate: ${receipt.date}\nVehicle: ${receipt.vehicle.plate}\nTotal: KES ${receipt.total.toLocaleString()}\n\nThank you for your business!`;
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+      } else {
+        toast.error(err?.error || 'Could not generate WhatsApp link. Customer may not have a phone number.');
+      }
     }
+  };
+
+  const handleEmail = () => {
+    if (!receipt) return;
+    const subject = encodeURIComponent(`Receipt ${receipt.receiptNumber} - ${receipt.business.name}`);
+    const services = receipt.items.map((i) => `  ${i.name} x${i.quantity}: KES ${i.total.toLocaleString()}`).join('\n');
+    const body = encodeURIComponent(
+      `Dear ${receipt.customer?.name || 'Valued Customer'},\n\nThank you for visiting ${receipt.business.name}!\n\n` +
+      `Receipt #: ${receipt.receiptNumber}\nJob #: ${receipt.jobNumber}\nDate: ${receipt.date}\nVehicle: ${receipt.vehicle.plate}` +
+      (receipt.vehicle.make ? ` (${receipt.vehicle.make} ${receipt.vehicle.model})` : '') +
+      `\n\nServices:\n${services}\n\nTotal: KES ${receipt.total.toLocaleString()}\nAmount Paid: KES ${receipt.amountPaid.toLocaleString()}` +
+      (receipt.change > 0 ? `\nChange: KES ${receipt.change.toLocaleString()}` : '') +
+      (receipt.balanceDue > 0 ? `\nBalance Due: KES ${receipt.balanceDue.toLocaleString()}` : '') +
+      `\n\n${receipt.footerMessage}\n\n${receipt.business.name}\n${receipt.business.phone}`
+    );
+    const email = receipt.customer?.phone || '';
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+    toast.success('Email client opened');
   };
 
   if (isLoading) {
@@ -259,7 +283,11 @@ export default function ReceiptPage() {
             <Share2 className="h-4 w-4 mr-2" />
             Share
           </Button>
-          <Button variant="outline" size="sm" onClick={handleWhatsApp}>
+          <Button variant="outline" size="sm" onClick={handleEmail} className="text-blue-600 border-blue-200 hover:bg-blue-50">
+            <Mail className="h-4 w-4 mr-2" />
+            Email
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleWhatsApp} className="text-green-600 border-green-200 hover:bg-green-50">
             <MessageCircle className="h-4 w-4 mr-2" />
             WhatsApp
           </Button>
@@ -440,15 +468,35 @@ export default function ReceiptPage() {
           </Card>
 
           {/* Action Buttons (hidden on print) */}
-          <div className="flex justify-center gap-4 mt-6 print:hidden">
-            <Button variant="outline" onClick={() => router.push(`/jobs/${jobId}`)}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Job
-            </Button>
-            <Button onClick={handlePrint}>
-              <Printer className="h-4 w-4 mr-2" />
-              Print Receipt
-            </Button>
+          <div className="mt-6 print:hidden space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                onClick={handleWhatsApp}
+                className="w-full text-green-600 border-green-300 hover:bg-green-50 gap-2"
+              >
+                <MessageCircle className="h-4 w-4" />
+                WhatsApp
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleEmail}
+                className="w-full text-blue-600 border-blue-300 hover:bg-blue-50 gap-2"
+              >
+                <Mail className="h-4 w-4" />
+                Email
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" onClick={() => router.push(`/jobs/${jobId}`)} className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Job
+              </Button>
+              <Button onClick={handlePrint} className="gap-2">
+                <Printer className="h-4 w-4" />
+                Print Receipt
+              </Button>
+            </div>
           </div>
         </div>
       </PageContainer>

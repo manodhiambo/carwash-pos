@@ -313,52 +313,44 @@ export default function InventoryPage() {
       />
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Items</p>
-                <p className="text-2xl font-bold">{items.length}</p>
-              </div>
-              <Package className="h-8 w-8 text-muted-foreground" />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 mb-6">
+        <Card className="overflow-hidden border-0 shadow-md">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-700 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-blue-100">Total Items</p>
+              <Package className="h-5 w-5 text-blue-200" />
             </div>
-          </CardContent>
+            <p className="text-2xl font-bold text-white">{items.length}</p>
+          </div>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Low Stock</p>
-                <p className="text-2xl font-bold text-warning-600">{lowStockItems.length}</p>
-              </div>
-              <TrendingDown className="h-8 w-8 text-warning-500" />
+        <Card className="overflow-hidden border-0 shadow-md">
+          <div className="bg-gradient-to-br from-yellow-500 to-orange-500 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-yellow-100">Low Stock</p>
+              <TrendingDown className="h-5 w-5 text-yellow-200" />
             </div>
-          </CardContent>
+            <p className="text-2xl font-bold text-white">{lowStockItems.length}</p>
+          </div>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Critical</p>
-                <p className="text-2xl font-bold text-destructive">
-                  {items.filter((i) => i.current_stock <= i.min_stock_level).length}
-                </p>
-              </div>
-              <AlertTriangle className="h-8 w-8 text-destructive" />
+        <Card className="overflow-hidden border-0 shadow-md">
+          <div className="bg-gradient-to-br from-red-500 to-red-700 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-red-100">Critical</p>
+              <AlertTriangle className="h-5 w-5 text-red-200" />
             </div>
-          </CardContent>
+            <p className="text-2xl font-bold text-white">
+              {items.filter((i) => i.current_stock <= i.min_stock_level).length}
+            </p>
+          </div>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Suppliers</p>
-                <p className="text-2xl font-bold">{suppliers.length}</p>
-              </div>
-              <Truck className="h-8 w-8 text-muted-foreground" />
+        <Card className="overflow-hidden border-0 shadow-md">
+          <div className="bg-gradient-to-br from-green-500 to-green-700 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-green-100">Suppliers</p>
+              <Truck className="h-5 w-5 text-green-200" />
             </div>
-          </CardContent>
+            <p className="text-2xl font-bold text-white">{suppliers.length}</p>
+          </div>
         </Card>
       </div>
 
@@ -388,8 +380,88 @@ export default function InventoryPage() {
         </Button>
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Mobile Card List */}
+      <div className="sm:hidden space-y-3 mb-4">
+        {isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}><CardContent className="pt-4"><div className="h-20 animate-pulse bg-muted rounded" /></CardContent></Card>
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <Package className="h-12 w-12 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No items found</p>
+              <Button onClick={() => handleOpenForm()} className="mt-4 gap-2">
+                <Plus className="h-4 w-4" /> Add First Item
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          items.map((item) => {
+            const stockLevel = getStockLevel(item);
+            return (
+              <Card key={item.id} className={`border-l-4 ${
+                stockLevel === 'critical' ? 'border-l-destructive' :
+                stockLevel === 'low' ? 'border-l-warning-500' :
+                'border-l-success-500'
+              }`}>
+                <CardContent className="pt-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm truncate">{item.name}</div>
+                      <div className="text-xs text-muted-foreground">SKU: {item.sku}</div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="secondary" className="capitalize text-xs">{item.category}</Badge>
+                        {stockLevel !== 'normal' && (
+                          <span className={`text-xs font-medium ${stockLevel === 'critical' ? 'text-destructive' : 'text-warning-600'}`}>
+                            {stockLevel === 'critical' ? '⚠ Critical' : '↓ Low Stock'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 text-sm">
+                        <span className="font-medium">{item.current_stock} {item.unit}</span>
+                        <span className="text-muted-foreground text-xs ml-2">
+                          (min: {item.min_stock_level})
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Cost: {formatCurrency(item.unit_cost)} {(item as any).selling_price ? `• Sell: ${formatCurrency((item as any).selling_price)}` : ''}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Button variant="outline" size="icon-sm" title="Add Stock" onClick={() => handleOpenStockDialog(item, 'add')}>
+                        <ArrowUp className="h-4 w-4 text-success-600" />
+                      </Button>
+                      <Button variant="outline" size="icon-sm" title="Remove Stock" onClick={() => handleOpenStockDialog(item, 'remove')}>
+                        <ArrowDown className="h-4 w-4 text-destructive" />
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon-sm"><MoreHorizontal className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleOpenForm(item)}>
+                            <Edit className="h-4 w-4 mr-2" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-destructive" onClick={() => setDeleteDialog({ open: true, item })}>
+                            <Trash2 className="h-4 w-4 mr-2" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      {/* Table - hidden on mobile */}
+      <Card className="hidden sm:block">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -552,7 +624,7 @@ export default function InventoryPage() {
 
       {/* Item Form Dialog */}
       <Dialog open={formDialog.open} onOpenChange={(open) => setFormDialog({ open })}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-xl max-h-[90dvh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {formDialog.item ? 'Edit Item' : 'Add New Item'}
@@ -561,122 +633,127 @@ export default function InventoryPage() {
               {formDialog.item ? 'Update inventory item details' : 'Enter the item details below'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="name" required>Item Name</Label>
-                <Input id="name" {...register('name')} placeholder="Car Shampoo" />
-                {errors.name && (
-                  <p className="text-sm text-destructive">{errors.name.message}</p>
-                )}
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 -mr-1">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name" required>Item Name</Label>
+                  <Input id="name" {...register('name')} placeholder="Car Shampoo" />
+                  {errors.name && (
+                    <p className="text-sm text-destructive">{errors.name.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sku" required>SKU</Label>
+                  <Input id="sku" {...register('sku')} placeholder="CS-001" />
+                  {errors.sku && (
+                    <p className="text-sm text-destructive">{errors.sku.message}</p>
+                  )}
+                </div>
               </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <SimpleSelect
+                    value={watch('category')}
+                    onValueChange={(value) => setValue('category', value as InventoryCategory)}
+                    options={inventoryCategories}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="unit" required>Unit</Label>
+                  <Input id="unit" {...register('unit')} placeholder="liters, pcs, kg" />
+                </div>
+              </div>
+
+              <div className="p-3 bg-muted/50 rounded-lg space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Stock Levels</p>
+                <div className="grid gap-3 grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="min_stock_level" className="text-xs">Min Stock</Label>
+                    <Input
+                      id="min_stock_level"
+                      type="number"
+                      {...register('min_stock_level', { valueAsNumber: true })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="reorder_point" className="text-xs">Reorder At</Label>
+                    <Input
+                      id="reorder_point"
+                      type="number"
+                      {...register('reorder_point', { valueAsNumber: true })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="max_stock_level" className="text-xs">Max Stock</Label>
+                    <Input
+                      id="max_stock_level"
+                      type="number"
+                      {...register('max_stock_level', { valueAsNumber: true })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="unit_cost">Unit Cost (KES)</Label>
+                  <Input
+                    id="unit_cost"
+                    type="number"
+                    step="0.01"
+                    {...register('unit_cost', { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="selling_price">Selling Price (KES)</Label>
+                  <Input
+                    id="selling_price"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    {...register('selling_price', { valueAsNumber: true })}
+                  />
+                  <p className="text-xs text-muted-foreground">Retail price for this item</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Supplier</Label>
+                  <SimpleSelect
+                    value={watch('supplier_id') || ''}
+                    onValueChange={(value) => setValue('supplier_id', value)}
+                    options={[
+                      { value: '', label: 'Select Supplier' },
+                      ...suppliers.map((s) => ({ value: s.id, label: s.name })),
+                    ]}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    {...register('location')}
+                    placeholder="Storage location"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="sku" required>SKU</Label>
-                <Input id="sku" {...register('sku')} placeholder="CS-001" />
-                {errors.sku && (
-                  <p className="text-sm text-destructive">{errors.sku.message}</p>
-                )}
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  {...register('description')}
+                  placeholder="Item description..."
+                  rows={2}
+                />
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <SimpleSelect
-                  value={watch('category')}
-                  onValueChange={(value) => setValue('category', value as InventoryCategory)}
-                  options={inventoryCategories}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="unit" required>Unit</Label>
-                <Input id="unit" {...register('unit')} placeholder="liters, pcs, kg" />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="min_stock_level">Min Stock</Label>
-                <Input
-                  id="min_stock_level"
-                  type="number"
-                  {...register('min_stock_level', { valueAsNumber: true })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reorder_point">Reorder Point</Label>
-                <Input
-                  id="reorder_point"
-                  type="number"
-                  {...register('reorder_point', { valueAsNumber: true })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="max_stock_level">Max Stock</Label>
-                <Input
-                  id="max_stock_level"
-                  type="number"
-                  {...register('max_stock_level', { valueAsNumber: true })}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="unit_cost">Unit Cost (KES)</Label>
-                <Input
-                  id="unit_cost"
-                  type="number"
-                  step="0.01"
-                  {...register('unit_cost', { valueAsNumber: true })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="selling_price">Selling Price (KES)</Label>
-                <Input
-                  id="selling_price"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  {...register('selling_price', { valueAsNumber: true })}
-                />
-                <p className="text-xs text-muted-foreground">Retail price for this item</p>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Supplier</Label>
-                <SimpleSelect
-                  value={watch('supplier_id') || ''}
-                  onValueChange={(value) => setValue('supplier_id', value)}
-                  options={[
-                    { value: '', label: 'Select Supplier' },
-                    ...suppliers.map((s) => ({ value: s.id, label: s.name })),
-                  ]}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Input
-                  id="location"
-                  {...register('location')}
-                  placeholder="Storage location"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                {...register('description')}
-                placeholder="Item description..."
-                rows={2}
-              />
-            </div>
-
-            <DialogFooter>
+            <DialogFooter className="mt-4 pt-4 border-t flex-shrink-0">
               <Button
                 type="button"
                 variant="outline"
@@ -691,7 +768,7 @@ export default function InventoryPage() {
                 {(createMutation.isPending || updateMutation.isPending) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                {formDialog.item ? 'Update' : 'Create'}
+                {formDialog.item ? 'Update Item' : 'Add Item'}
               </Button>
             </DialogFooter>
           </form>
