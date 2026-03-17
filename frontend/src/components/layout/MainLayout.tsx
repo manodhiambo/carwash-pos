@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { useSidebar, useAuthStore, useConfirmDialog } from '@/stores';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { BottomNav } from './BottomNav';
 import { AlertDialog } from '@/components/ui/dialog';
 import { Toaster } from 'react-hot-toast';
 import { PageLoader } from '@/components/ui/spinner';
@@ -87,11 +88,14 @@ export function MainLayout({ children }: MainLayoutProps) {
         {/* Header */}
         <Header showSearch />
 
-        {/* Page content */}
-        <main className="min-h-[calc(100vh-4rem)]">
+        {/* Page content — extra bottom padding on mobile for bottom nav */}
+        <main className="min-h-[calc(100vh-4rem)] pb-16 lg:pb-0">
           {children}
         </main>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <BottomNav />
 
       {/* Global confirm dialog */}
       <AlertDialog

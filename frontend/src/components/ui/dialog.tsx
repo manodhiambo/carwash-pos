@@ -89,10 +89,8 @@ const DialogContent = React.forwardRef<
         <div className="flex-shrink-0 flex justify-center pt-3 pb-1 sm:hidden">
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
         </div>
-        {/* Content column — no scroll here; DialogBody handles scroll */}
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-          {children}
-        </div>
+        {/* Children sit directly in the flex column — DialogHeader shrinks, form/body grows and scrolls */}
+        {children}
         {showCloseButton && (
           <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-10">
             <X className="h-4 w-4" />

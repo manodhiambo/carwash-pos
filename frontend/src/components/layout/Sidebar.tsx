@@ -209,13 +209,14 @@ export function Sidebar() {
       <aside
         className={cn(
           'fixed left-0 top-0 z-50 h-screen border-r bg-card transition-all duration-300',
+          'flex flex-col',
           'w-64 -translate-x-full lg:translate-x-0',
           sidebarOpen && 'translate-x-0',
           isCollapsed ? 'lg:w-16' : 'lg:w-64'
         )}
       >
         {/* Logo */}
-        <div className="flex h-16 items-center justify-between border-b px-4">
+        <div className="flex-shrink-0 flex h-16 items-center justify-between border-b px-4">
           <Link href="/dashboard" className={cn('flex items-center gap-2', isCollapsed && 'lg:hidden')}>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Car className="h-5 w-5" />
@@ -231,8 +232,8 @@ export function Sidebar() {
           )}
         </div>
 
-        {/* Navigation */}
-        <ScrollArea className="flex-1 py-4" style={{ height: 'calc(100vh - 8rem)' }}>
+        {/* Navigation — scrollable, takes all available space */}
+        <ScrollArea className="flex-1 py-4">
           <nav className="flex flex-col gap-1 px-2">
             {filteredNavItems.map((item) => (
               <NavLink key={item.href} item={item} />
@@ -240,8 +241,8 @@ export function Sidebar() {
           </nav>
         </ScrollArea>
 
-        {/* Bottom section */}
-        <div className="absolute bottom-0 left-0 right-0 border-t p-2">
+        {/* Bottom section — always visible, in normal flow */}
+        <div className="flex-shrink-0 border-t p-2">
           <div className="flex items-center justify-between">
             <Button
               variant="ghost"

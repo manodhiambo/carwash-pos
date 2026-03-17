@@ -224,7 +224,174 @@ export default function JobsPage() {
         </TabsList>
 
         <TabsContent value={activeTab}>
-          <Card>
+          {/* Mobile card view */}
+          <div className="sm:hidden space-y-3">
+            {isLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-28 rounded-xl bg-muted animate-pulse" />
+              ))
+            ) : filteredJobs.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <Car className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                <p className="font-medium">No jobs found</p>
+                <p className="text-sm mt-1">
+                  {activeTab === 'active' ? 'Check in a vehicle to get started.' : 'No jobs match your filters.'}
+                </p>
+                <Link href="/check-in">
+                  <Button className="mt-4 gap-2">
+                    <Plus className="h-4 w-4" />
+                    New Check-In
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              filteredJobs.map((job) => {
+                const nextStatus = getNextStatus(job.status as JobStatus);
+                const isActive = !['completed', 'paid', 'cancelled'].includes(job.status);
+                return (
+                  <div
+                    key={job.id}
+                    className="bg-card rounded-xl border shadow-sm overflow-hidden"
+                  >
+                    {/* Card header — colored by status */}
+                    <div className={cn(
+                      'px-4 py-2.5 flex items-center justify-between',
+                      job.status === 'completed' || job.status === 'paid'
+                        ? 'bg-green-50 dark:bg-green-950/30'
+                        : job.status === 'cancelled'
+                        ? 'bg-red-50 dark:bg-red-950/30'
+                        : job.status === 'washing' || job.status === 'detailing'
+                        ? 'bg-blue-50 dark:bg-blue-950/30'
+                        : 'bg-orange-50 dark:bg-orange-950/30'
+                    )}>
+                      <div className="flex items-center gap-2">
+                        <div className="h-9 w-9 rounded-full bg-white shadow-sm flex items-center justify-center">
+                          <Car className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm tracking-wide">{job.vehicle?.registration_number}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{job.vehicle?.vehicle_type}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={job.status} />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon-sm" className="h-7 w-7">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/jobs/${job.id}`}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
+                              </Link>
+                            </DropdownMenuItem>
+                            {isActive && nextStatus && (
+                              <DropdownMenuItem onClick={() => handleStatusChange(job, nextStatus)}>
+                                <Play className="h-4 w-4 mr-2" />
+                                Move to {nextStatus.replace('_', ' ')}
+                              </DropdownMenuItem>
+                            )}
+                            {job.status === 'completed' && job.payment_status !== 'paid' && (
+                              <DropdownMenuItem asChild>
+                                <Link href={`/pos?job=${job.id}`}>
+                                  <DollarSign className="h-4 w-4 mr-2" />
+                                  Process Payment
+                                </Link>
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            {isActive && (
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setCancelDialog({ open: true, job })}
+                              >
+                                <XCircle className="h-4 w-4 mr-2" />
+                                Cancel Job
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+
+                    {/* Card body */}
+                    <div className="px-4 py-3 space-y-2">
+                      {/* Services */}
+                      <div className="flex flex-wrap gap-1">
+                        {(job.services ?? []).slice(0, 3).map((s) => (
+                          <Badge key={s.id} variant="secondary" className="text-xs">
+                            {s.service.name}
+                          </Badge>
+                        ))}
+                        {(job.services ?? []).length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{(job.services ?? []).length - 3}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Footer row */}
+                      <div className="flex items-center justify-between pt-1">
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {getRelativeTime(job.check_in_time ?? job.created_at ?? '')}
+                          </span>
+                          {job.bay && (
+                            <span className="flex items-center gap-1">
+                              <Wrench className="h-3 w-3" />
+                              {job.bay.name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-sm">{formatCurrency(job.total_amount)}</p>
+                          <StatusBadge status={job.payment_status ?? 'unpaid'} className="text-[10px]" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick action bar for active jobs */}
+                    {isActive && nextStatus && (
+                      <div className="border-t px-4 py-2 flex gap-2">
+                        <Button
+                          size="sm"
+                          className="flex-1 h-8 text-xs gap-1"
+                          onClick={() => handleStatusChange(job, nextStatus)}
+                          disabled={updateStatusMutation.isPending}
+                        >
+                          <Play className="h-3 w-3" />
+                          Move to {nextStatus.replace('_', ' ')}
+                        </Button>
+                        <Link href={`/jobs/${job.id}`} className="flex-1">
+                          <Button size="sm" variant="outline" className="w-full h-8 text-xs gap-1">
+                            <Eye className="h-3 w-3" />
+                            View
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
+                    {job.status === 'completed' && job.payment_status !== 'paid' && (
+                      <div className="border-t px-4 py-2">
+                        <Link href={`/pos?job=${job.id}`}>
+                          <Button size="sm" className="w-full h-8 text-xs gap-1 bg-green-600 hover:bg-green-700">
+                            <DollarSign className="h-3 w-3" />
+                            Collect Payment — {formatCurrency(job.total_amount)}
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop table view */}
+          <Card className="hidden sm:block">
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
@@ -290,11 +457,7 @@ export default function JobsPage() {
                           <TableCell>
                             <div className="max-w-[200px]">
                               {(job.services ?? []).slice(0, 2).map((s) => (
-                                <Badge
-                                  key={s.id}
-                                  variant="secondary"
-                                  className="mr-1 mb-1 text-xs"
-                                >
+                                <Badge key={s.id} variant="secondary" className="mr-1 mb-1 text-xs">
                                   {s.service.name}
                                 </Badge>
                               ))}
@@ -327,9 +490,7 @@ export default function JobsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="font-medium">
-                              {formatCurrency(job.total_amount)}
-                            </div>
+                            <div className="font-medium">{formatCurrency(job.total_amount)}</div>
                             {job.discount_amount > 0 && (
                               <div className="text-xs text-muted-foreground">
                                 -{formatCurrency(job.discount_amount)} discount
@@ -366,22 +527,19 @@ export default function JobsPage() {
                                   job.status !== 'paid' &&
                                   job.status !== 'cancelled' &&
                                   nextStatus && (
-                                    <DropdownMenuItem
-                                      onClick={() => handleStatusChange(job, nextStatus)}
-                                    >
+                                    <DropdownMenuItem onClick={() => handleStatusChange(job, nextStatus)}>
                                       <Play className="h-4 w-4 mr-2" />
                                       Move to {nextStatus.replace('_', ' ')}
                                     </DropdownMenuItem>
                                   )}
-                                {(job.status === 'completed') &&
-                                  job.payment_status !== 'paid' && (
-                                    <DropdownMenuItem asChild>
-                                      <Link href={`/pos?job=${job.id}`}>
-                                        <DollarSign className="h-4 w-4 mr-2" />
-                                        Process Payment
-                                      </Link>
-                                    </DropdownMenuItem>
-                                  )}
+                                {job.status === 'completed' && job.payment_status !== 'paid' && (
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/pos?job=${job.id}`}>
+                                      <DollarSign className="h-4 w-4 mr-2" />
+                                      Process Payment
+                                    </Link>
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                                 {job.status !== 'completed' &&
                                   job.status !== 'paid' &&
