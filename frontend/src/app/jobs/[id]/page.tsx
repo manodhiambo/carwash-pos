@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { jobsApi, usersApi, commissionsApi } from '@/lib/api';
+import { jobsApi, usersApi, baysApi, commissionsApi } from '@/lib/api';
 import { PageHeader, PageContainer } from '@/components/layout/PageHeader';
 import {
   Button,
@@ -61,6 +61,12 @@ export default function JobDetailPage() {
     queryFn: () => usersApi.getAll({ limit: 100 }),
   });
 
+  // Fetch bays for display fallback
+  const { data: baysData } = useQuery({
+    queryKey: ['bays'],
+    queryFn: () => baysApi.getAll({ limit: 100 }),
+  });
+
   // Update job mutation
   const updateJobMutation = useMutation({
     mutationFn: (data: any) => jobsApi.update(jobId, data),
@@ -99,7 +105,14 @@ export default function JobDetailPage() {
 
   const job = jobData?.data;
   const staff = staffData?.data || [];
-  const activeStaff = staff.filter((s: any) => s.is_active && ['attendant', 'manager'].includes(s.role));
+  const bays = baysData?.data || [];
+  const activeStaff = staff.filter((s: any) => s.is_active);
+
+  // Fallback lookups when nested objects aren't populated by the API
+  const assignedStaffName = job?.assigned_staff?.name
+    || (job?.assigned_staff_id ? staff.find((s: any) => s.id === job.assigned_staff_id)?.name : null);
+  const bayName = job?.bay?.name
+    || (job?.bay_id ? bays.find((b: any) => b.id === job.bay_id)?.name : null);
 
   const handleStatusChange = (newStatus: string) => {
     updateJobMutation.mutate({ status: newStatus });
@@ -298,17 +311,17 @@ export default function JobDetailPage() {
               {job.status}
             </StatusBadge>
 
-            {job.bay && (
+            {bayName && (
               <div className="mt-4">
                 <p className="text-sm text-muted-foreground">Bay</p>
-                <p className="font-medium">{job.bay.name}</p>
+                <p className="font-medium">{bayName}</p>
               </div>
             )}
 
-            {job.assigned_staff && (
+            {assignedStaffName && (
               <div className="mt-4">
                 <p className="text-sm text-muted-foreground">Assigned To</p>
-                <p className="font-medium">{job.assigned_staff.name}</p>
+                <p className="font-medium">{assignedStaffName}</p>
               </div>
             )}
 
@@ -318,7 +331,7 @@ export default function JobDetailPage() {
               onClick={() => setIsAssignDialogOpen(true)}
             >
               <UserCog className="h-4 w-4 mr-2" />
-              {job.assigned_staff_id ? 'Reassign Staff' : 'Assign Staff'}
+              {job.assigned_staff_id || assignedStaffName ? 'Reassign Staff' : 'Assign Staff'}
             </Button>
           </Card>
 
