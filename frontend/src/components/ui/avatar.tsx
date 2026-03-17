@@ -52,6 +52,7 @@ interface UserAvatarProps {
   src?: string | null;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
+  colorClass?: string;
 }
 
 const sizeClasses = {
@@ -61,9 +62,9 @@ const sizeClasses = {
   xl: 'h-16 w-16 text-lg',
 };
 
-function UserAvatar({ name, src, size = 'md', className }: UserAvatarProps) {
+function UserAvatar({ name, src, size = 'md', className, colorClass: colorClassOverride }: UserAvatarProps) {
   const initials = getInitials(name);
-  const colorClass = stringToColor(name);
+  const colorClass = colorClassOverride ?? stringToColor(name);
 
   return (
     <Avatar className={cn(sizeClasses[size], className)}>

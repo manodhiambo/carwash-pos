@@ -250,6 +250,7 @@ export function Header({ title, showSearch = false }: HeaderProps) {
                 name={user?.name || 'User'}
                 src={user?.avatar_url}
                 size="sm"
+                colorClass="bg-green-600"
               />
             </Button>
           </DropdownMenuTrigger>
@@ -257,7 +258,7 @@ export function Header({ title, showSearch = false }: HeaderProps) {
             {/* User info */}
             <DropdownMenuLabel>
               <div className="flex items-center gap-3">
-                <UserAvatar name={user?.name || 'User'} src={user?.avatar_url} size="sm" />
+                <UserAvatar name={user?.name || 'User'} src={user?.avatar_url} size="sm" colorClass="bg-green-600" />
                 <div className="flex flex-col min-w-0">
                   <p className="text-sm font-semibold truncate">{user?.name}</p>
                   <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
