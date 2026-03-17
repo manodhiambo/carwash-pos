@@ -74,7 +74,7 @@ const DialogContent = React.forwardRef<
         className={cn(
           'relative w-full sm:max-w-lg',
           'max-h-[92dvh] sm:max-h-[85vh]',
-          'flex flex-col',
+          'flex flex-col overflow-hidden',
           'bg-background border shadow-lg',
           'rounded-t-2xl sm:rounded-lg',
           'duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out',
@@ -135,7 +135,7 @@ const DialogBody = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex-1 overflow-y-auto overscroll-contain',
+      'flex-1 min-h-0 overflow-y-auto overscroll-contain',
       'px-6 pb-2',
       className
     )}
