@@ -634,7 +634,7 @@ export default function InventoryPage() {
               {formDialog.item ? 'Update inventory item details' : 'Enter the item details below'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+          <form onSubmit={handleSubmit(onSubmit)} className="">
             <DialogBody className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -791,7 +791,7 @@ export default function InventoryPage() {
               {stockDialog.item?.unit}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleStockSubmit(onStockSubmit)} className="flex flex-col flex-1 min-h-0">
+          <form onSubmit={handleStockSubmit(onStockSubmit)} className="">
             <DialogBody className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="stock-quantity" required>Quantity</Label>

@@ -487,7 +487,7 @@ export default function BaysPage() {
               {formDialog.bay ? 'Update bay information' : 'Enter the bay details below'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+          <form onSubmit={handleSubmit(onSubmit)} className="">
             <DialogBody className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name" required>Bay Name</Label>

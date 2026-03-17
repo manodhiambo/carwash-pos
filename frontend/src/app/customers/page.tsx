@@ -524,7 +524,7 @@ export default function CustomersPage() {
                 : 'Enter the customer details below'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+          <form onSubmit={handleSubmit(onSubmit)} className="">
             <DialogBody className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name" required>Name</Label>

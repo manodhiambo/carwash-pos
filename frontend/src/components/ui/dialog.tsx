@@ -74,7 +74,7 @@ const DialogContent = React.forwardRef<
         className={cn(
           'relative w-full sm:max-w-lg',
           'max-h-[92dvh] sm:max-h-[85vh]',
-          'flex flex-col overflow-hidden',
+          'overflow-y-auto overscroll-contain',
           'bg-background border shadow-lg',
           'rounded-t-2xl sm:rounded-lg',
           'duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out',
@@ -86,13 +86,12 @@ const DialogContent = React.forwardRef<
         {...props}
       >
         {/* Drag handle on mobile */}
-        <div className="flex-shrink-0 flex justify-center pt-3 pb-1 sm:hidden">
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
         </div>
-        {/* Children sit directly in the flex column — DialogHeader shrinks, form/body grows and scrolls */}
         {children}
         {showCloseButton && (
-          <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-10">
+          <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground z-20">
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
@@ -103,15 +102,16 @@ const DialogContent = React.forwardRef<
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
-/** Non-scrolling header — title stays visible while form body scrolls */
+/** Sticky header — always visible at the top as content scrolls */
 const DialogHeader = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex-shrink-0 flex flex-col space-y-1.5 text-center sm:text-left',
-      'px-6 pt-5 sm:pt-6 pb-4',
+      'sticky top-0 z-10 bg-background',
+      'flex flex-col space-y-1.5 text-center sm:text-left',
+      'px-6 pt-4 sm:pt-5 pb-4 border-b',
       className
     )}
     {...props}
@@ -121,8 +121,9 @@ DialogHeader.displayName = 'DialogHeader';
 
 /**
  * Scrollable body — place form fields here.
+ * The parent DialogContent is the scroll container; this is just a padding wrapper.
  * Usage:
- *   <form onSubmit={…} className="flex flex-col flex-1 min-h-0">
+ *   <form onSubmit={…}>
  *     <DialogBody>…fields…</DialogBody>
  *     <DialogFooter>…buttons…</DialogFooter>
  *   </form>
@@ -133,8 +134,7 @@ const DialogBody = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex-1 min-h-0 overflow-y-auto overscroll-contain',
-      'px-6 pb-2',
+      'px-6 py-4',
       className
     )}
     {...props}
@@ -142,14 +142,14 @@ const DialogBody = ({
 );
 DialogBody.displayName = 'DialogBody';
 
-/** Non-scrolling sticky footer — always visible at the bottom */
+/** Sticky footer — always visible at the bottom as content scrolls */
 const DialogFooter = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex-shrink-0 border-t bg-background',
+      'sticky bottom-0 z-10 bg-background border-t',
       'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2',
       'px-6 py-4',
       className

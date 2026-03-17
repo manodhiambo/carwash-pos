@@ -488,7 +488,7 @@ export default function ServicesPage() {
                 : 'Enter service details and set pricing for each vehicle type'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+          <form onSubmit={handleSubmit(onSubmit)} className="">
             <DialogBody className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
