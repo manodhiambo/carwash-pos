@@ -73,8 +73,10 @@ const DialogContent = React.forwardRef<
         ref={ref}
         className={cn(
           'relative w-full sm:max-w-lg',
-          'max-h-[92dvh] sm:max-h-[85vh]',
-          'overflow-y-auto overscroll-contain',
+          // Mobile: EXPLICIT height so overflow-y-auto actually scrolls.
+          // max-height alone is not a definite height — browsers won't scroll against it.
+          'h-[90vh] sm:h-auto sm:max-h-[85vh]',
+          'overflow-y-auto',
           'bg-background border shadow-lg',
           'rounded-t-2xl sm:rounded-lg',
           'duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out',
