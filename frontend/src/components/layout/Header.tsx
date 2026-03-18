@@ -174,7 +174,7 @@ export function Header({ title, showSearch = false }: HeaderProps) {
       {/* Actions */}
       <div className="flex items-center gap-1">
         {/* Theme toggle — hidden on mobile to save space */}
-        <Button variant="ghost" size="icon" onClick={toggleTheme} className="hidden sm:flex">
+        <Button variant="ghost" size="icon" onClick={toggleTheme}>
           {theme === 'dark' ? (
             <Sun className="h-5 w-5" />
           ) : (
@@ -280,15 +280,6 @@ export function Header({ title, showSearch = false }: HeaderProps) {
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </Link>
-            </DropdownMenuItem>
-            {/* Theme toggle in menu on mobile */}
-            <DropdownMenuItem onClick={toggleTheme} className="sm:hidden">
-              {theme === 'dark' ? (
-                <Sun className="mr-2 h-4 w-4" />
-              ) : (
-                <Moon className="mr-2 h-4 w-4" />
-              )}
-              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
