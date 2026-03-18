@@ -47,6 +47,12 @@ export default function JobDetailPage() {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState('');
+
+  // Pre-populate staff when assign dialog opens
+  const handleOpenAssignDialog = () => {
+    setSelectedStaff(job?.assigned_staff_id ? String(job.assigned_staff_id) : '');
+    setIsAssignDialogOpen(true);
+  };
   const [noteText, setNoteText] = useState('');
 
   // Fetch job details
@@ -328,7 +334,7 @@ export default function JobDetailPage() {
             <Button
               className="w-full mt-4"
               variant="outline"
-              onClick={() => setIsAssignDialogOpen(true)}
+              onClick={handleOpenAssignDialog}
             >
               <UserCog className="h-4 w-4 mr-2" />
               {job.assigned_staff_id || assignedStaffName ? 'Reassign Staff' : 'Assign Staff'}
@@ -421,7 +427,7 @@ export default function JobDetailPage() {
                 options={[
                   { value: '', label: 'Select staff...' },
                   ...activeStaff.map((s: any) => ({
-                    value: s.id,
+                    value: String(s.id),
                     label: `${s.name} (${s.role})`,
                   })),
                 ]}

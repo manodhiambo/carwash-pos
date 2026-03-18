@@ -255,6 +255,7 @@ export interface CheckInPayload {
   vehicle_make?: string;
   vehicle_model?: string;
   vehicle_color?: string;
+  customer_id?: string;
   customer_name?: string;
   customer_phone?: string;
   services: { service_id: number; quantity: number }[];

@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
-import { servicesApi, vehiclesApi, jobsApi, baysApi, usersApi } from '@/lib/api';
+import { servicesApi, vehiclesApi, jobsApi, baysApi, usersApi, customersApi } from '@/lib/api';
 import { useJobStore } from '@/stores';
 import { formatCurrency, formatVehicleReg } from '@/lib/utils';
 import { PageContainer, PageHeader } from '@/components/layout';
@@ -44,9 +44,10 @@ import {
   ExternalLink,
   Star,
   Gift,
+  X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { VehicleType, Service, JobPriority, Bay, User, Job } from '@/types';
+import { VehicleType, Service, JobPriority, Bay, User, Job, Customer } from '@/types';
 
 const PRESET_COMMISSION_RATES = [10, 15, 20, 25, 30, 35, 40, 45, 50];
 
@@ -106,6 +107,14 @@ export default function CheckInPage() {
   // Loyalty points for returning customer
   const [customerLoyaltyPoints, setCustomerLoyaltyPoints] = React.useState<number | null>(null);
 
+  // Customer search
+  const [customerSearch, setCustomerSearch] = React.useState('');
+  const [customerSearchResults, setCustomerSearchResults] = React.useState<Customer[]>([]);
+  const [searchingCustomer, setSearchingCustomer] = React.useState(false);
+  const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
+  const [showCustomerDropdown, setShowCustomerDropdown] = React.useState(false);
+  const customerSearchRef = React.useRef<HTMLDivElement>(null);
+
   // Duplicate detection state
   const [activeJob, setActiveJob] = React.useState<Job | null>(null);
   const [showDuplicateModal, setShowDuplicateModal] = React.useState(false);
@@ -127,6 +136,8 @@ export default function CheckInPage() {
       vehicle_type: 'saloon',
       services: [],
       priority: 'normal',
+      bay_id: '',
+      assigned_staff_id: '',
     },
   });
 
@@ -185,11 +196,15 @@ export default function CheckInPage() {
         setValue('model', vehicle.model || '');
         setValue('color', vehicle.color || '');
         if (vehicle.customer) {
-          setValue('customer_name', vehicle.customer.name);
-          setValue('customer_phone', vehicle.customer.phone);
-          // Capture loyalty points for returning customer
-          if (typeof (vehicle.customer as any).loyalty_points === 'number') {
-            setCustomerLoyaltyPoints((vehicle.customer as any).loyalty_points);
+          const cust = vehicle.customer as any;
+          setValue('customer_name', cust.name);
+          setValue('customer_phone', cust.phone);
+          if (typeof cust.loyalty_points === 'number') {
+            setCustomerLoyaltyPoints(cust.loyalty_points);
+          }
+          // Auto-select the linked customer
+          if (cust.id) {
+            setSelectedCustomer(cust as Customer);
           }
         }
         setFoundVehicle(true);
@@ -217,6 +232,59 @@ export default function CheckInPage() {
     } finally {
       setSearchingVehicle(false);
     }
+  };
+
+  // Close customer dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (customerSearchRef.current && !customerSearchRef.current.contains(e.target as Node)) {
+        setShowCustomerDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Search customers as user types
+  const handleCustomerSearch = React.useCallback(async (query: string) => {
+    setCustomerSearch(query);
+    if (query.length < 2) {
+      setCustomerSearchResults([]);
+      setShowCustomerDropdown(false);
+      return;
+    }
+    setSearchingCustomer(true);
+    try {
+      const result = await customersApi.search(query);
+      const customers = (result.data as any) || [];
+      setCustomerSearchResults(Array.isArray(customers) ? customers : []);
+      setShowCustomerDropdown(true);
+    } catch {
+      setCustomerSearchResults([]);
+    } finally {
+      setSearchingCustomer(false);
+    }
+  }, []);
+
+  // Select a customer from the dropdown
+  const handleSelectCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setCustomerSearch('');
+    setShowCustomerDropdown(false);
+    setValue('customer_name', customer.name);
+    setValue('customer_phone', customer.phone);
+    if (typeof customer.loyalty_points === 'number') {
+      setCustomerLoyaltyPoints(customer.loyalty_points);
+    }
+  };
+
+  // Clear selected customer
+  const handleClearCustomer = () => {
+    setSelectedCustomer(null);
+    setCustomerSearch('');
+    setValue('customer_name', '');
+    setValue('customer_phone', '');
+    setCustomerLoyaltyPoints(null);
   };
 
   // Add selected services to the existing active job
@@ -348,6 +416,7 @@ export default function CheckInPage() {
         vehicle_make: data.make,
         vehicle_model: data.model,
         vehicle_color: data.color,
+        ...(selectedCustomer ? { customer_id: selectedCustomer.id } : {}),
         customer_name: data.customer_name,
         customer_phone: data.customer_phone,
         services: data.services.map((id: string) => ({
@@ -514,13 +583,88 @@ export default function CheckInPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Customer search */}
+                {!selectedCustomer ? (
+                  <div ref={customerSearchRef} className="relative">
+                    <Label className="mb-2 block">Search Customer by Name or Phone</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="e.g. John or 0712 345 678"
+                        value={customerSearch}
+                        onChange={(e) => handleCustomerSearch(e.target.value)}
+                        onFocus={() => customerSearchResults.length > 0 && setShowCustomerDropdown(true)}
+                        className="pl-9"
+                      />
+                      {searchingCustomer && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {showCustomerDropdown && customerSearchResults.length > 0 && (
+                      <div className="absolute z-20 mt-1 w-full rounded-lg border bg-popover shadow-lg overflow-hidden">
+                        {customerSearchResults.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onMouseDown={() => handleSelectCustomer(c)}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors border-b last:border-b-0"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm truncate">{c.name}</div>
+                              <div className="text-xs text-muted-foreground">{c.phone}</div>
+                            </div>
+                            {c.loyalty_points > 0 && (
+                              <div className="flex items-center gap-1 text-xs text-yellow-600 shrink-0">
+                                <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+                                {c.loyalty_points.toLocaleString()} pts
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {showCustomerDropdown && customerSearch.length >= 2 && !searchingCustomer && customerSearchResults.length === 0 && (
+                      <div className="absolute z-20 mt-1 w-full rounded-lg border bg-popover shadow-lg px-4 py-3 text-sm text-muted-foreground">
+                        No customers found — fill in details below to create one
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Selected customer chip */
+                  <div className="flex items-center gap-3 p-3 rounded-lg border border-green-200 bg-green-50">
+                    <div className="h-9 w-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                      <UserIcon className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm text-green-800">{selectedCustomer.name}</div>
+                      <div className="text-xs text-green-600">{selectedCustomer.phone}</div>
+                    </div>
+                    {selectedCustomer.loyalty_points > 0 && (
+                      <div className="flex items-center gap-1 text-xs text-yellow-600 shrink-0">
+                        <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+                        {selectedCustomer.loyalty_points.toLocaleString()} pts
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleClearCustomer}
+                      className="p-1 rounded-full hover:bg-green-200 transition-colors shrink-0"
+                    >
+                      <X className="h-4 w-4 text-green-700" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Manual entry fallback */}
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="customer_name">Customer Name</Label>
+                    <Label htmlFor="customer_name">Name</Label>
                     <Input
                       id="customer_name"
                       placeholder="John Doe"
                       {...register('customer_name')}
+                      readOnly={!!selectedCustomer}
+                      className={selectedCustomer ? 'bg-muted' : ''}
                     />
                   </div>
                   <div className="space-y-2">
@@ -529,6 +673,8 @@ export default function CheckInPage() {
                       id="customer_phone"
                       placeholder="0712 345 678"
                       {...register('customer_phone')}
+                      readOnly={!!selectedCustomer}
+                      className={selectedCustomer ? 'bg-muted' : ''}
                     />
                   </div>
                 </div>
@@ -721,7 +867,7 @@ export default function CheckInPage() {
                       options={[
                         { value: '', label: 'Auto-assign' },
                         ...availableBays.map((b) => ({
-                          value: b.id,
+                          value: String(b.id),
                           label: `${b.name} (${b.bay_type})`,
                         })),
                       ]}
@@ -735,7 +881,7 @@ export default function CheckInPage() {
                       options={[
                         { value: '', label: 'Auto-assign' },
                         ...staffList.map((s) => ({
-                          value: s.id,
+                          value: String(s.id),
                           label: s.name,
                         })),
                       ]}
