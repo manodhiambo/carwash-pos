@@ -288,7 +288,7 @@ export const changePassword = asyncHandler(async (req: AuthenticatedRequest, res
  * POST /api/v1/auth/register
  */
 export const register = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const { name, email, password, phone, role, branch_id } = req.body;
+  const { name, email, password, phone, role, branch_id, commission_rate, is_active } = req.body;
 
   // Auto-generate username from email if not provided
   let username = req.body.username;
@@ -328,11 +328,14 @@ export const register = asyncHandler(async (req: AuthenticatedRequest, res: Resp
   const passwordHash = await bcrypt.hash(password, config.bcrypt.saltRounds);
 
   // Create user
+  const status = is_active === false ? 'inactive' : 'active';
+  const commissionRate = commission_rate ?? 0;
   const result = await db.query(
-    `INSERT INTO users (name, email, username, password_hash, phone, role, branch_id, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
-     RETURNING id, name, email, username, phone, role, status, branch_id, created_at`,
-    [name, email, username, passwordHash, phone, role, branch_id]
+    `INSERT INTO users (name, email, username, password_hash, phone, role, branch_id, status, commission_rate)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING id, name, email, username, phone, role, status, branch_id, created_at, commission_rate,
+               CASE WHEN status = 'active' THEN true ELSE false END as is_active`,
+    [name, email, username, passwordHash, phone, role, branch_id, status, commissionRate]
   );
 
   res.status(201).json({
@@ -407,7 +410,8 @@ export const getUsers = asyncHandler(async (req: AuthenticatedRequest, res: Resp
 
   const result = await db.query(
     `SELECT u.id, u.name, u.email, u.username, u.phone, u.role, u.status,
-            u.branch_id, u.avatar, u.last_login, u.created_at,
+            u.branch_id, u.avatar, u.last_login, u.created_at, u.commission_rate,
+            CASE WHEN u.status = 'active' THEN true ELSE false END as is_active,
             b.name as branch_name
      FROM users u
      LEFT JOIN branches b ON u.branch_id = b.id
@@ -438,7 +442,8 @@ export const getUser = asyncHandler(async (req: AuthenticatedRequest, res: Respo
 
   const result = await db.query(
     `SELECT u.id, u.name, u.email, u.username, u.phone, u.role, u.status,
-            u.branch_id, u.avatar, u.last_login, u.created_at,
+            u.branch_id, u.avatar, u.last_login, u.created_at, u.commission_rate,
+            CASE WHEN u.status = 'active' THEN true ELSE false END as is_active,
             b.name as branch_name, b.code as branch_code
      FROM users u
      LEFT JOIN branches b ON u.branch_id = b.id
@@ -466,7 +471,12 @@ export const getUser = asyncHandler(async (req: AuthenticatedRequest, res: Respo
  */
 export const updateUser = asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const { name, email, phone, role, status, branch_id } = req.body;
+  const { name, email, phone, role, branch_id, commission_rate, is_active } = req.body;
+  // Support both `status` string and `is_active` boolean from frontend
+  let status = req.body.status;
+  if (status === undefined && is_active !== undefined) {
+    status = is_active ? 'active' : 'inactive';
+  }
 
   const existing = await db.query(`SELECT id FROM users WHERE id = $1`, [id]);
   if (existing.rows.length === 0) {
@@ -499,10 +509,12 @@ export const updateUser = asyncHandler(async (req: AuthenticatedRequest, res: Re
          role = COALESCE($4, role),
          status = COALESCE($5, status),
          branch_id = COALESCE($6, branch_id),
+         commission_rate = COALESCE($8, commission_rate),
          updated_at = CURRENT_TIMESTAMP
      WHERE id = $7
-     RETURNING id, name, email, username, phone, role, status, branch_id`,
-    [name, email, phone, role, status, branch_id, id]
+     RETURNING id, name, email, username, phone, role, status, branch_id, commission_rate,
+               CASE WHEN status = 'active' THEN true ELSE false END as is_active`,
+    [name, email, phone, role, status, branch_id, id, commission_rate]
   );
 
   res.json({

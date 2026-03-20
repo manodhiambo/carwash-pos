@@ -193,7 +193,7 @@ export const getAllCommissionSummaries = asyncHandler(async (req: AuthenticatedR
      LEFT JOIN commissions c ON u.id = c.staff_id 
        AND c.created_at >= $1 
        AND c.created_at <= $2
-     WHERE u.role IN ('attendant', 'cashier', 'manager')
+     WHERE u.role IN ('attendant', 'cashier', 'manager', 'supervisor')
        AND u.status = 'active'
      GROUP BY u.id, u.name, u.commission_rate
      ORDER BY total_earnings DESC`,
