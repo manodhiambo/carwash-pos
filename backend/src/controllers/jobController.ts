@@ -280,6 +280,7 @@ export const checkIn = asyncHandler(async (req: AuthenticatedRequest, res: Respo
     services,
     bay_id,
     assigned_staff_id,
+    commission_rate_override,
     notes,
     damage_notes,
     is_rewash,
@@ -401,9 +402,9 @@ export const checkIn = asyncHandler(async (req: AuthenticatedRequest, res: Respo
       `INSERT INTO jobs (
         job_no, vehicle_id, customer_id, branch_id, bay_id, status,
         assigned_staff_id, checked_in_by, estimated_completion,
-        notes, damage_notes, is_rewash, original_job_id
+        notes, damage_notes, is_rewash, original_job_id, commission_rate_override
       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         jobNo,
@@ -419,6 +420,7 @@ export const checkIn = asyncHandler(async (req: AuthenticatedRequest, res: Respo
         damage_notes,
         is_rewash || false,
         original_job_id,
+        commission_rate_override || null,
       ]
     );
 
@@ -613,7 +615,12 @@ export const updateStatus = asyncHandler(async (req: AuthenticatedRequest, res: 
   // Auto-create commission when job is completed and has assigned staff
   if (status === JOB_STATUS.COMPLETED && job.assigned_staff_id) {
     try {
-      const rate = await getEffectiveCommissionRate(job.assigned_staff_id);
+      // Use the commission_rate_override stored on the job (set at check-in) if available,
+      // otherwise fall back to the staff member's stored rate.
+      let rate = job.commission_rate_override ? parseFloat(job.commission_rate_override) : 0;
+      if (rate <= 0) {
+        rate = await getEffectiveCommissionRate(job.assigned_staff_id);
+      }
       if (rate > 0) {
         await createCommissionForJob(parseInt(id, 10), job.assigned_staff_id, rate);
       }

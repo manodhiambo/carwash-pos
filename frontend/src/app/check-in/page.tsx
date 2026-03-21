@@ -410,6 +410,22 @@ export default function CheckInPage() {
     }
 
     try {
+      // Calculate weighted-average commission rate across selected services
+      // so the rate set in the UI is preserved on the backend.
+      let totalCommissionValue = 0;
+      let totalServiceValue = 0;
+      data.services.forEach((id: string) => {
+        const service = services.find((s) => String(s.id) === id);
+        if (service) {
+          const price = customPrices[id] || getServicePrice(service) || 0;
+          const rate = commissionRates[id] || 0;
+          totalCommissionValue += price * rate;
+          totalServiceValue += price;
+        }
+      });
+      const effectiveCommissionRate =
+        totalServiceValue > 0 ? totalCommissionValue / totalServiceValue : 0;
+
       const job = await checkIn({
         registration_no: data.registration_number.replace(/\s/g, '').toUpperCase(),
         vehicle_type: data.vehicle_type as VehicleType,
@@ -427,6 +443,7 @@ export default function CheckInPage() {
         priority: data.priority as JobPriority,
         bay_id: data.bay_id,
         assigned_staff_id: data.assigned_staff_id,
+        ...(effectiveCommissionRate > 0 ? { commission_rate_override: effectiveCommissionRate } : {}),
         notes: data.notes,
       });
 

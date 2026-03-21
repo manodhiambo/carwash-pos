@@ -258,10 +258,11 @@ export interface CheckInPayload {
   customer_id?: string;
   customer_name?: string;
   customer_phone?: string;
-  services: { service_id: number; quantity: number }[];
+  services: { service_id: number; quantity: number; price?: number }[];
   priority?: JobPriority;
   bay_id?: string;
   assigned_staff_id?: string;
+  commission_rate_override?: number;
   notes?: string;
 }
 
